@@ -23,10 +23,12 @@ if (flutterVersionName == null) {
 }
 
 android {
+    compileSdkVersion 31
     namespace "com.chenyeju.flutter_uvc_camera"
     ndkVersion '21.0.6113669'
-    compileSdkVersion(31)
-
+    viewBinding {
+        enabled = true
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -45,8 +47,8 @@ android {
         applicationId "com.chenyeju.flutter_uvc_camera"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdkVersion flutter.minSdkVersion
-        targetSdkVersion flutter.targetSdkVersion
+        minSdkVersion 19
+        targetSdkVersion 27
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
@@ -66,4 +68,6 @@ flutter {
 
 dependencies {
     implementation 'com.github.jiangdongguo.AndroidUSBCamera:libausbc:3.3.3'
+    implementation "androidx.constraintlayout:constraintlayout:2.1.4"
+
 }

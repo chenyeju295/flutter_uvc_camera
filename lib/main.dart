@@ -5,6 +5,25 @@ void main() {
   runApp(const MyApp());
 }
 
+class UVCCameraController {
+  static const platform = MethodChannel('com.chenyeju.flutter_uvc_camera/usb');
+
+  Future<void> initialize() async {
+    await platform.invokeMethod('initialize');
+  }
+
+  void startCamera() async {
+    try {
+      await platform.invokeMethod('startCamera');
+    } on PlatformException catch (e) {
+      // 处理异常
+      print(e);
+    }
+  }
+
+// 添加更多控制相机的方法...
+}
+
 class UsbService {
   static const platform = MethodChannel('com.chenyeju.flutter_uvc_camera/usb');
 
@@ -54,11 +73,23 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  final cameraController = UVCCameraController();
+
+  @override
+  void initState() {
+    super.initState();
+    _incrementCounter();
+  }
 
   void _incrementCounter() {
     setState(() {
       _counter++;
     });
+  }
+
+  void _onPlatformViewCreated(int id) {
+    // Platform view 创建后的回调，可以在这里初始化相机
+    cameraController.initialize();
   }
 
   @override
@@ -79,12 +110,31 @@ class _MyHomePageState extends State<MyHomePage> {
             TextButton(
                 onPressed: () {
                   try {
+                    cameraController.startCamera();
+                  } catch (e) {
+                    print(e);
+                  }
+                },
+                child: Text('Start Camera')),
+            const SizedBox(height: 20),
+            TextButton(
+                onPressed: () {
+                  try {
                     UsbService.connectToUsbDevice();
                   } catch (e) {
                     print(e);
                   }
                 },
                 child: Text('Get USB Devices')),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: 200,
+              height: 200,
+              child: AndroidView(
+                viewType: 'uvc_camera_view',
+                onPlatformViewCreated: _onPlatformViewCreated,
+              ),
+            ),
             const SizedBox(height: 20),
             TextButton(
                 onPressed: () {
