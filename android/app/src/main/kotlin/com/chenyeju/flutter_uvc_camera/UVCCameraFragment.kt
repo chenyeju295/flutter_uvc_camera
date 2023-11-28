@@ -1,9 +1,5 @@
 package com.chenyeju.flutter_uvc_camera
 
-import android.Manifest
-import android.content.Context
-import android.os.Bundle
-import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -12,10 +8,15 @@ import com.chenyeju.flutter_uvc_camera.databinding.FragmentUvcCameraBinding
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.base.CameraFragment
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
+import com.jiangdg.ausbc.callback.ICaptureCallBack
+import com.jiangdg.ausbc.utils.ToastUtils
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
-class UVCCameraFragment : CameraFragment() {
+import io.flutter.plugin.common.MethodChannel
+
+class UVCCameraFragment(channel: MethodChannel) : CameraFragment() {
     private lateinit var viewBinding: FragmentUvcCameraBinding
+    private val _channel: MethodChannel = channel
 
     override fun onCameraState(
         self: MultiCameraClient.ICamera,
@@ -25,6 +26,39 @@ class UVCCameraFragment : CameraFragment() {
 
 
 
+    }
+
+    fun takePicture() {
+        _channel.invokeMethod("callFlutter", "")
+
+        captureImage(
+            object : ICaptureCallBack {
+                override fun onBegin() {
+                    ToastUtils.show("开始拍照")
+                }
+
+                override fun onComplete(path: String?) {
+                    _channel.invokeMethod("takePictureSuccess", path)
+                }
+
+                override fun onError(error: String?) {
+                    ToastUtils.show(error ?: "未知异常")
+                    _channel.invokeMethod("callFlutter", error)
+
+                }
+
+            }
+        )
+    }
+
+    private fun showRecentMedia(isImage: Boolean? = null) {
+    }
+
+
+    fun startPreview() {
+    }
+
+    fun stopPreview() {
     }
 
     override fun getCameraView(): IAspectRatio {

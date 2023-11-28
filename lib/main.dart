@@ -6,15 +6,41 @@ void main() {
 }
 
 class UVCCameraController {
-  static const platform = MethodChannel('com.chenyeju.flutter_uvc_camera/usb');
+  static const platform = MethodChannel('uvc_camera');
 
   Future<void> initialize() async {
     await platform.invokeMethod('initialize');
   }
 
+  //方法是异步的
+  static Future<String> _methodChannelHandler(MethodCall call) async {
+    String result = "";
+    switch (call.method) {
+      //收到Android的调用，并返回数据
+      case "callFlutter":
+        print('-----收到来自Android的消息');
+        print(call.arguments);
+        result = "收到来自Android的消息";
+        break;
+      case "takePictureSuccess":
+        print(call.arguments);
+        break;
+    }
+    return result;
+  }
+
   void startCamera() async {
     try {
       await platform.invokeMethod('startCamera');
+    } on PlatformException catch (e) {
+      // 处理异常
+      print(e);
+    }
+  }
+
+  void takePicture() async {
+    try {
+      await platform.invokeMethod('takePicture');
     } on PlatformException catch (e) {
       // 处理异常
       print(e);
@@ -33,6 +59,15 @@ class UsbService {
       print(result);
     } on PlatformException catch (e) {
       print("Failed to connect to USB device: '${e.message}'.");
+    }
+  }
+
+  static void startCamera() async {
+    try {
+      await platform.invokeMethod('startCamera');
+    } on PlatformException catch (e) {
+      // 处理异常
+      print(e);
     }
   }
 
@@ -110,7 +145,7 @@ class _MyHomePageState extends State<MyHomePage> {
             TextButton(
                 onPressed: () {
                   try {
-                    cameraController.startCamera();
+                    UsbService.startCamera();
                   } catch (e) {
                     print(e);
                   }
@@ -135,6 +170,16 @@ class _MyHomePageState extends State<MyHomePage> {
                 onPlatformViewCreated: _onPlatformViewCreated,
               ),
             ),
+            const SizedBox(height: 20),
+            TextButton(
+                onPressed: () {
+                  try {
+                    cameraController.takePicture();
+                  } catch (e) {
+                    print(e);
+                  }
+                },
+                child: Text('takePicture')),
             const SizedBox(height: 20),
             TextButton(
                 onPressed: () {

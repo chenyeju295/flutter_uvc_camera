@@ -12,13 +12,12 @@ import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
-import android.os.Bundle
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
 import androidx.fragment.app.Fragment
+import com.jiangdg.ausbc.base.CameraFragment
 import com.jiangdg.ausbc.utils.ToastUtils
-import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -30,10 +29,12 @@ class MainActivity : FlutterFragmentActivity() {
     private val productId =  52225
     private val actionUsbPermission = "com.chenyeju.flutter_uvc_camera.USB_PERMISSION"
     private lateinit var usbManager: UsbManager
+    private lateinit var cameraViewFactory: UVCCameraViewFactory
     private var connection: UsbDeviceConnection? = null
     private var usbInterface: UsbInterface? = null
     private var inEndpoint: UsbEndpoint? = null
     private var outEndpoint: UsbEndpoint? = null
+
 
 
     private val usbPermissionReceiver = object : BroadcastReceiver() {
@@ -90,12 +91,6 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
-    private fun startCamera() {
-        // 创建 CameraFragment 的实例
-        val cameraFragment = UVCCameraFragment ()
-        // 将 CameraFragment 添加到容器中
-        replaceDemoFragment(cameraFragment)
-    }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
@@ -103,19 +98,21 @@ class MainActivity : FlutterFragmentActivity() {
         val filter = IntentFilter(actionUsbPermission)
         registerReceiver(usbPermissionReceiver, filter)
 
-        flutterEngine
-            .platformViewsController
-            .registry
-            .registerViewFactory("uvc_camera_view", UVCCameraViewFactory())
+        flutterEngine.plugins.add(UVCCameraPlugin())
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
+//        flutterEngine
+//            .platformViewsController
+//            .registry
+//            .registerViewFactory("uvc_camera_view", cameraViewFactory)
+        val channel =  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getUsbDevicesList" -> {
                     val deviceList = usbManager.deviceList
                     result.success(deviceList.toString())
                 }
                 "startCamera" -> {
-                    startCamera()
+                    replaceDemoFragment(UVCCameraFragment(channel))
                 }
                 "connectToUsbDevice" -> {
                     connectToUsbDevice()
@@ -225,9 +222,31 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun writeToDevice(data: ByteArray) {
-        outEndpoint?.let { endpoint ->
-            connection?.bulkTransfer(endpoint, data, data.size, 10)
+        try {
+            val requestType = UsbConstants.USB_TYPE_VENDOR or UsbConstants.USB_DIR_OUT
+
+            inEndpoint?.let { endpoint ->
+                val bytesSent =  connection?.controlTransfer(
+                    requestType,
+                    1,
+                    41,
+                    1,
+                    byteArrayOf(0, 120, 18, -1), 4, 10)
+                Log.d(  "USB", "Wrote data to device.$bytesSent ")
+            }
+
+           inEndpoint?.let { endpoint ->
+               val bytesSent =   connection?.bulkTransfer(endpoint, byteArrayOf(0, 120, 18, -1), 4, 10)
+                Log.d(  "USB", "Wrote data to device.$bytesSent")
+               ToastUtils.show("Wrote data to device.$bytesSent")
+
+            }
+
+
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+
     }
 
 }
