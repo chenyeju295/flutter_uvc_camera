@@ -16,8 +16,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class UVCCameraFragment(channel: MethodChannel) : CameraFragment() {
     private lateinit var viewBinding: FragmentUvcCameraBinding
-    private val _channel: MethodChannel = channel
-
+    private  val _channel = channel
     override fun onCameraState(
         self: MultiCameraClient.ICamera,
         code: ICameraStateCallBack.State,

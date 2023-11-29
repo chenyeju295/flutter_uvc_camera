@@ -1,6 +1,7 @@
 package com.chenyeju.flutter_uvc_camera
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -29,11 +30,62 @@ class MainActivity : FlutterFragmentActivity() {
     private val productId =  52225
     private val actionUsbPermission = "com.chenyeju.flutter_uvc_camera.USB_PERMISSION"
     private lateinit var usbManager: UsbManager
-    private lateinit var cameraViewFactory: UVCCameraViewFactory
+
     private var connection: UsbDeviceConnection? = null
     private var usbInterface: UsbInterface? = null
     private var inEndpoint: UsbEndpoint? = null
     private var outEndpoint: UsbEndpoint? = null
+
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
+
+        val filter = IntentFilter(actionUsbPermission)
+        registerReceiver(usbPermissionReceiver, filter)
+
+        flutterEngine.plugins.add(UVCCameraPlugin())
+        val channel =  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+        channel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getUsbDevicesList" -> {
+                    val deviceList = usbManager.deviceList
+                    result.success(deviceList.toString())
+                }
+                "startCamera" -> {
+                    replaceDemoFragment(UVCCameraFragment(channel))
+                }
+                "connectToUsbDevice" -> {
+                    connectToUsbDevice()
+                }
+                "listenToDevice" -> {
+                    // Implement listening logic here
+                    result.success("Listening attempt started")
+                }
+                "writeToDevice" -> {
+                    val data = call.arguments as ByteArray
+                    writeToDevice(data)
+                    result.success("Write attempt started")
+                }
+                "readFromDevice" -> {
+                    // Implement reading logic here
+                    result.success("Read attempt started")
+                }
+                "closeConnection" -> {
+                    unregisterReceiver(usbPermissionReceiver)
+                }
+                "initialize" -> {
+                    // 初始化相机
+                    replaceDemoFragment(UVCCameraFragment(channel))
+
+                    result.success(null)
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+    }
 
 
 
@@ -88,59 +140,6 @@ class MainActivity : FlutterFragmentActivity() {
             transaction.commitAllowingStateLoss()
         } catch (e: Exception) {
             e.printStackTrace()
-        }
-    }
-
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
-
-        val filter = IntentFilter(actionUsbPermission)
-        registerReceiver(usbPermissionReceiver, filter)
-
-        flutterEngine.plugins.add(UVCCameraPlugin())
-
-//        flutterEngine
-//            .platformViewsController
-//            .registry
-//            .registerViewFactory("uvc_camera_view", cameraViewFactory)
-        val channel =  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
-        channel.setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getUsbDevicesList" -> {
-                    val deviceList = usbManager.deviceList
-                    result.success(deviceList.toString())
-                }
-                "startCamera" -> {
-                    replaceDemoFragment(UVCCameraFragment(channel))
-                }
-                "connectToUsbDevice" -> {
-                    connectToUsbDevice()
-                }
-                "listenToDevice" -> {
-                    // Implement listening logic here
-                    result.success("Listening attempt started")
-                }
-                "writeToDevice" -> {
-                    val data = call.arguments as ByteArray
-                    writeToDevice(data)
-                    result.success("Write attempt started")
-                }
-                "readFromDevice" -> {
-                    // Implement reading logic here
-                    result.success("Read attempt started")
-                }
-                "closeConnection" -> {
-                    unregisterReceiver(usbPermissionReceiver)
-                }
-                "initialize" -> {
-                    // 初始化相机
-                    result.success(null)
-                }
-                else -> {
-                    result.notImplemented()
-                }
-            }
         }
     }
 
@@ -225,15 +224,15 @@ class MainActivity : FlutterFragmentActivity() {
         try {
             val requestType = UsbConstants.USB_TYPE_VENDOR or UsbConstants.USB_DIR_OUT
 
-            inEndpoint?.let { endpoint ->
-                val bytesSent =  connection?.controlTransfer(
-                    requestType,
-                    1,
-                    41,
-                    1,
-                    byteArrayOf(0, 120, 18, -1), 4, 10)
-                Log.d(  "USB", "Wrote data to device.$bytesSent ")
-            }
+//            inEndpoint?.let { endpoint ->
+//                val bytesSent =  connection?.controlTransfer(
+//                    requestType,
+//                    1,
+//                    41,
+//                    1,
+//                    byteArrayOf(0, 120, 18, -1), 4, 10)
+//                Log.d(  "USB", "Wrote data to device.$bytesSent ")
+//            }
 
            inEndpoint?.let { endpoint ->
                val bytesSent =   connection?.bulkTransfer(endpoint, byteArrayOf(0, 120, 18, -1), 4, 10)

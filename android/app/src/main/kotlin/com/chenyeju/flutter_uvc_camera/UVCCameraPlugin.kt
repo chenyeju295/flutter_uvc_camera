@@ -27,7 +27,7 @@ class UVCCameraPlugin : FlutterPlugin,
                 result.success("Android " + Build.VERSION.RELEASE)
             }
             "isCameraOpened" -> {
-                val cameraOpened: Boolean = mUVCCameraViewFactory.isCameraOpened() == true
+                val cameraOpened: Boolean = mUVCCameraViewFactory.isCameraOpened()
                 result.success(cameraOpened.toString())
             }
             "takePicture" -> {

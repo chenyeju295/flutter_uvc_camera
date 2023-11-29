@@ -8,17 +8,15 @@ import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
 
 
-class UVCCameraViewFactory( channel: MethodChannel) : PlatformViewFactory(StandardMessageCodec.INSTANCE){
+class UVCCameraViewFactory(channel: MethodChannel ) : PlatformViewFactory(StandardMessageCodec.INSTANCE){
 
-    private val _channel: MethodChannel = channel
     private lateinit var cameraView : UVCCameraView
+     private  var mChannel : MethodChannel  = channel
 
 
-    init {
-    }
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
-        cameraView = UVCCameraView(LayoutInflater.from(context),_channel)
+        cameraView = UVCCameraView(context, mChannel, viewId, args as Map<*, *>?)
         return cameraView
     }
 
@@ -34,7 +32,7 @@ class UVCCameraViewFactory( channel: MethodChannel) : PlatformViewFactory(Standa
         cameraView.stopPreview()
     }
 
-    fun isCameraOpened(): Boolean? {
+    fun isCameraOpened(): Boolean {
         return cameraView.isCameraOpened()
     }
 

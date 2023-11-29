@@ -6,7 +6,7 @@ void main() {
 }
 
 class UVCCameraController {
-  static const platform = MethodChannel('uvc_camera');
+  static var platform = MethodChannel('uvc_camera')..setMethodCallHandler(_methodChannelHandler);
 
   Future<void> initialize() async {
     await platform.invokeMethod('initialize');
