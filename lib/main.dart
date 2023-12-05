@@ -60,18 +60,24 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             const SizedBox(height: 40),
-            SizedBox(height: 200, child: AspectRatio(aspectRatio: 16 / 9, child: UVCCameraView())),
+            SizedBox(height: 200, child: UVCCameraView()),
             const SizedBox(height: 20),
             TextButton(
                 onPressed: () {
-                  try {
-                    cameraController.takePicture();
-                  } catch (e) {
-                    print(e);
-                  }
+                  cameraController.takePicture();
+                  setState(() {});
                 },
                 child: Text('takePicture')),
             const SizedBox(height: 20),
+            TextButton(
+                onPressed: () {
+                  cameraController.writeToDevice(_counter);
+                  _counter++;
+                  setState(() {});
+                },
+                child: Text('writeToDevice')),
+            const SizedBox(height: 20),
+            ...cameraController.getCallStrings.map((e) => Text(e)),
             const SizedBox(height: 20),
           ],
         ),

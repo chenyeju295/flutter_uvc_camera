@@ -11,6 +11,8 @@ class UVCCameraController {
   String get getCameraErrorMsg => _cameraErrorMsg;
   static String _takePicturePath = '';
   String get getTakePicturePath => _takePicturePath;
+  static List<String> callStrings = [];
+  List<String> get getCallStrings => callStrings;
 
   final MethodChannel _cameraChannel = const MethodChannel(_channelName)..setMethodCallHandler(_methodChannelHandler);
 
@@ -19,6 +21,7 @@ class UVCCameraController {
     switch (call.method) {
       case "callFlutter":
         debugPrint('------> 收到来自Android的消息：${call.arguments}');
+        callStrings.add(call.arguments.toString());
         break;
       case "takePictureSuccess":
         _takePictureSuccess(call.arguments.toString());
@@ -42,9 +45,9 @@ class UVCCameraController {
     }
   }
 
-  Future<void> writeToDevice(List<int> data) async {
+  Future<void> writeToDevice(int data) async {
     try {
-      final result = await _cameraChannel.invokeMethod('writeToDevice', Uint8List.fromList(data));
+      final result = await _cameraChannel.invokeMethod('writeToDevice', data);
       print(result);
     } on PlatformException catch (e) {
       print("Failed to write to USB device: '${e.message}'.");
