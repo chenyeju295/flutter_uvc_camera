@@ -23,7 +23,6 @@ class MainActivity : FlutterFragmentActivity() {
         super.configureFlutterEngine(flutterEngine)
 
         channel =  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
-        mUVCCameraFragment = UVCCameraFragment(channel)
         flutterEngine.
             platformViewsController
             .registry
@@ -32,15 +31,17 @@ class MainActivity : FlutterFragmentActivity() {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "initializeCamera" -> {
+                    mUVCCameraFragment = UVCCameraFragment(channel,call.arguments)
                     replaceCameraFragment(mUVCCameraFragment)
                 }
                 "takePicture" -> {
                     mUVCCameraFragment.takePicture()
                 }
-
-                "getUsbDevicesList" -> {
+                "getAllPreviewSize" -> {
+                    mUVCCameraFragment.getAllPreviewSize()
                 }
-                "connectToUsbDevice" -> {
+                "getDevicesList" -> {
+                    mUVCCameraFragment.getDevicesList()
                 }
                 "listenToDevice" -> {
                     // Implement listening logic here
@@ -55,6 +56,7 @@ class MainActivity : FlutterFragmentActivity() {
                     result.success("Read attempt started")
                 }
                 "closeConnection" -> {
+                    mUVCCameraFragment.closeConnection()
                 }
 
                 "getPlatformVersion" -> {
@@ -90,13 +92,12 @@ class MainActivity : FlutterFragmentActivity() {
             )
             return
         }
-        try {
-            val transaction = supportFragmentManager.beginTransaction()
-            transaction.replace(R.id.fragment_container, fragment)
-            transaction.commitAllowingStateLoss()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+
+
+
+        val transaction = supportFragmentManager.beginTransaction()
+        transaction.replace(R.id.fragment_container, fragment)
+        transaction.commitAllowingStateLoss()
         if(!fragment.checkCamera()){
             fragment.callFlutter("请插入UVC摄像头")
         }

@@ -11,8 +11,12 @@ class UVCCameraController {
   String get getCameraErrorMsg => _cameraErrorMsg;
   static String _takePicturePath = '';
   String get getTakePicturePath => _takePicturePath;
-  static List<String> callStrings = [];
-  List<String> get getCallStrings => callStrings;
+  static final List<String> _callStrings = [];
+  List<String> get getCallStrings => _callStrings;
+  static final List<dynamic> _devicesList = [];
+  List<dynamic> get devicesList => _devicesList;
+  static final List<dynamic> _allPreviewSize = [];
+  List<dynamic> get allPreviewSize => _allPreviewSize;
 
   final MethodChannel _cameraChannel = const MethodChannel(_channelName)..setMethodCallHandler(_methodChannelHandler);
 
@@ -21,7 +25,7 @@ class UVCCameraController {
     switch (call.method) {
       case "callFlutter":
         debugPrint('------> 收到来自Android的消息：${call.arguments}');
-        callStrings.add(call.arguments.toString());
+        _callStrings.add(call.arguments.toString());
         break;
       case "takePictureSuccess":
         _takePictureSuccess(call.arguments.toString());
@@ -29,11 +33,16 @@ class UVCCameraController {
       case "CameraState":
         _setCameraState(call.arguments.toString());
         break;
+      case "getDevicesList":
+        _devicesList.addAll(call.arguments);
+        break;
+      case "getAllPreviewSize":
+        _allPreviewSize.addAll(call.arguments);
     }
   }
 
-  Future<void> initializeCamera() async {
-    await _cameraChannel.invokeMethod('initializeCamera');
+  Future<void> initializeCamera({required double width, required double height}) async {
+    await _cameraChannel.invokeMethod('initializeCamera', {"width": width, "height": height});
   }
 
   Future<void> connectToUsbDevice() async {
@@ -57,6 +66,24 @@ class UVCCameraController {
   void startCamera() async {
     try {
       await _cameraChannel.invokeMethod('startCamera');
+    } on PlatformException catch (e) {
+      // 处理异常
+      print(e);
+    }
+  }
+
+  void getAllPreviewSize() async {
+    try {
+      await _cameraChannel.invokeMethod('getAllPreviewSize');
+    } on PlatformException catch (e) {
+      // 处理异常
+      print(e);
+    }
+  }
+
+  void getDevicesList() async {
+    try {
+      await _cameraChannel.invokeMethod('getDevicesList');
     } on PlatformException catch (e) {
       // 处理异常
       print(e);

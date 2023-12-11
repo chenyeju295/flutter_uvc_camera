@@ -13,7 +13,7 @@ class UVCCameraViewFactory : PlatformViewFactory(StandardMessageCodec.INSTANCE){
     private lateinit var cameraView : UVCCameraView
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
-        cameraView = UVCCameraView(context,  viewId, args as Map<*, *>?)
+        cameraView = UVCCameraView(context,  viewId, args )
         return cameraView
     }
 }

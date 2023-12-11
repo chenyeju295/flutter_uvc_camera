@@ -56,30 +56,54 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const SizedBox(height: 40),
-            SizedBox(height: 200, child: UVCCameraView()),
-            const SizedBox(height: 20),
-            TextButton(
-                onPressed: () {
-                  cameraController.takePicture();
-                  setState(() {});
-                },
-                child: Text('takePicture')),
-            const SizedBox(height: 20),
-            TextButton(
-                onPressed: () {
-                  cameraController.writeToDevice(_counter);
-                  _counter++;
-                  setState(() {});
-                },
-                child: Text('writeToDevice')),
-            const SizedBox(height: 20),
-            ...cameraController.getCallStrings.map((e) => Text(e)),
-            const SizedBox(height: 20),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              const SizedBox(height: 40),
+              TextButton(
+                  onPressed: () {
+                    cameraController.initializeCamera(width: 640, height: 480);
+                    setState(() {});
+                  },
+                  child: Text('刷新摄像')),
+              const SizedBox(height: 20),
+              SizedBox(child: UVCCameraView(width: 300, height: 300)),
+              const SizedBox(height: 20),
+              TextButton(
+                  onPressed: () {
+                    cameraController.takePicture();
+                    setState(() {});
+                  },
+                  child: Text('takePicture')),
+              const SizedBox(height: 20),
+              TextButton(
+                  onPressed: () {
+                    cameraController.writeToDevice(_counter);
+                    _counter++;
+                    setState(() {});
+                  },
+                  child: Text('writeToDevice')),
+              const SizedBox(height: 20),
+              TextButton(
+                  onPressed: () {
+                    cameraController.getAllPreviewSize();
+                    setState(() {});
+                  },
+                  child: Text('getAllPreviewSize')),
+              const SizedBox(height: 20),
+              const SizedBox(height: 20),
+              TextButton(
+                  onPressed: () {
+                    cameraController.getDevicesList();
+                    setState(() {});
+                  },
+                  child: Text('getDevicesList')),
+              const SizedBox(height: 20),
+              ...cameraController.getCallStrings.map((e) => Text(e)),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
