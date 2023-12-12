@@ -163,17 +163,17 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
 
                             val value = (0x03 shl 8) or 54619
 
-                            val index = 1024
+                            val index = 0
                             val timeout = 0 // 超时时间（毫秒）
 
 
-                            // 第一个控制传输
+
 
                             // 第一个控制传输
                             var result: Int? = connection?.controlTransfer(
                                 64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
                                 request,//request: 根据您的设备协议，可能是1或129。
-                                2560, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
+                                54619, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
                                 index,
                                 byteArrayOf(0) , 1,
                                 timeout
@@ -188,7 +188,7 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
                                 result = connection?.controlTransfer(
                                 64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
                                 request,//request: 根据您的设备协议，可能是1或129。
-                                2816, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
+                                    54619, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
                                 index,
                                 data, size,
                                 timeout
