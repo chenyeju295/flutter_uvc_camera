@@ -1,0 +1,1 @@
+/Users/mac/Downloads/AndroidUSBCamera-master/libnative/build/intermediates/cmake/debug/obj/x86_64

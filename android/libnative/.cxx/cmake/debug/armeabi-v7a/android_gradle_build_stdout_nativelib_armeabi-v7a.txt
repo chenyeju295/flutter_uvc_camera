@@ -1,0 +1,2 @@
+ninja: Entering directory `/Users/mac/Downloads/AndroidUSBCamera-master/libnative/.cxx/cmake/debug/armeabi-v7a'
+ninja: no work to do.

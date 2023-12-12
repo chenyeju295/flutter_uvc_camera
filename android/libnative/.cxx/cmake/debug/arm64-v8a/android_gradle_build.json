@@ -1,0 +1,42 @@
+{
+  "stringTable": {},
+  "buildFiles": [
+    "/Users/mac/Downloads/AndroidUSBCamera-master/libnative/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja",
+      "-C",
+      "/Users/mac/Downloads/AndroidUSBCamera-master/libnative/.cxx/cmake/debug/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja",
+    "-C",
+    "/Users/mac/Downloads/AndroidUSBCamera-master/libnative/.cxx/cmake/debug/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "nativelib-Debug-arm64-v8a": {
+      "buildCommandComponents": [
+        "/Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja",
+        "-C",
+        "/Users/mac/Downloads/AndroidUSBCamera-master/libnative/.cxx/cmake/debug/arm64-v8a",
+        "nativelib"
+      ],
+      "buildType": "debug",
+      "abi": "arm64-v8a",
+      "artifactName": "nativelib",
+      "output": "/Users/mac/Downloads/AndroidUSBCamera-master/libnative/build/intermediates/cmake/debug/obj/arm64-v8a/libnativelib.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {},
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

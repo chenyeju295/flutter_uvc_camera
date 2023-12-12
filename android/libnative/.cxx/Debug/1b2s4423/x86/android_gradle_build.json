@@ -1,0 +1,42 @@
+{
+  "stringTable": {},
+  "buildFiles": [
+    "/Users/mac/Documents/flutter_uvc_camera/android/libnative/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja",
+      "-C",
+      "/Users/mac/Documents/flutter_uvc_camera/android/libnative/.cxx/Debug/1b2s4423/x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja",
+    "-C",
+    "/Users/mac/Documents/flutter_uvc_camera/android/libnative/.cxx/Debug/1b2s4423/x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "nativelib-Debug-x86": {
+      "buildCommandComponents": [
+        "/Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja",
+        "-C",
+        "/Users/mac/Documents/flutter_uvc_camera/android/libnative/.cxx/Debug/1b2s4423/x86",
+        "nativelib"
+      ],
+      "buildType": "debug",
+      "abi": "x86",
+      "artifactName": "nativelib",
+      "output": "/Users/mac/Documents/flutter_uvc_camera/build/libnative/intermediates/cxx/Debug/1b2s4423/obj/x86/libnativelib.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {},
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}
