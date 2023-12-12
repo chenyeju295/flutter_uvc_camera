@@ -8,7 +8,6 @@ import android.view.View
 import android.view.ViewGroup
 import com.chenyeju.flutter_uvc_camera.databinding.ActivityMainBinding
 import com.jiangdg.ausbc.MultiCameraClient
-import com.jiangdg.ausbc.base.CameraFragment
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
 import com.jiangdg.ausbc.callback.ICaptureCallBack
 import com.jiangdg.ausbc.camera.CameraUVC
@@ -20,14 +19,16 @@ import io.flutter.plugin.common.MethodChannel
 
 
 open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFragment() {
-    private  var viewBinding: ActivityMainBinding?= null
+    private var viewBinding: ActivityMainBinding? = null
     private val _channel = channel
-    private  var previewWidth : Int?=null
-    private  var previewHeight : Int?=null
+    private var previewWidth: Int? = null
+    private var previewHeight: Int? = null
+    private var connection: UsbDeviceConnection? = null
+
     init {
-        if ( arguments is Map<*, *>) {
-            previewWidth =  (arguments["height"] as Number ).toInt()
-            previewHeight = ( arguments["width"] as Number).toInt()
+        if (arguments is Map<*, *>) {
+            previewWidth = (arguments["height"] as Number).toInt()
+            previewHeight = (arguments["width"] as Number).toInt()
         }
     }
 
@@ -41,6 +42,7 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
     override fun getCameraViewContainer(): ViewGroup? {
         return viewBinding?.fragmentContainer
     }
+
     override fun getCameraView(): IAspectRatio {
 
         return AspectRatioTextureView(requireContext())
@@ -48,7 +50,7 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
 
     override fun getCameraRequest(): CameraRequest {
         return CameraRequest.Builder().setPreviewWidth(previewWidth ?: 640)
-            .setPreviewHeight(  previewHeight ?:  480)
+            .setPreviewHeight(previewHeight ?: 480)
             .setRenderMode(CameraRequest.RenderMode.OPENGL)
             .setDefaultRotateType(RotateType.ANGLE_0)
             .setAudioSource(CameraRequest.AudioSource.SOURCE_SYS_MIC)
@@ -85,12 +87,13 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
 
 
     fun takePicture() {
-        if (! isCameraOpened()) {
-            callFlutter( "摄像头未打开")
+        if (!isCameraOpened()) {
+            callFlutter("摄像头未打开")
             return
         }
         captureImage()
     }
+
     private fun captureImage() {
         captureImage(
             object : ICaptureCallBack {
@@ -109,6 +112,7 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
             }
         )
     }
+
     fun callFlutter(error: String?) {
         _channel.invokeMethod("callFlutter", error)
     }
@@ -125,77 +129,65 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
         }
         return false
     }
+
     fun getAllPreviewSize() {
         val list = getAllPreviewSizes()
-        _channel.invokeMethod("getAllPreviewSizes",list )
+        _channel.invokeMethod("getAllPreviewSizes", list)
     }
 
     fun getDevicesList() {
         val list = getDeviceList()
-        _channel.invokeMethod("getDevicesList",list )
+        _channel.invokeMethod("getDevicesList", list)
     }
 
     fun writeToDevice(indexData: Int) {
         try {
+            connection = getCtrlBlock()?.connection
+            if (connection != null) {
+                val y0 = listOf("11", "12", "13")
+                val i = indexData % 3
+                val b1: Byte = Integer.parseInt(y0[i], 16).toByte()
+                val b2: Byte = Integer.parseInt("ff", 16).toByte()
 
-            var usbDevice: UsbDevice?  = null
-            getCurrentCamera()?.let { strategy ->
-                if (strategy is CameraUVC) {
-                    usbDevice = strategy.getUsbDevice()
+                val data = byteArrayOf(0, 120, b1, b2)
+
+                val size = data.size
+
+                val request = 1
+
+                val value = 54619
+
+                val index = 1
+                val timeout = 0 // 超时时间（毫秒）
+
+
+                // 第一个控制传输
+                var result: Int? = connection?.controlTransfer(
+                    64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
+                    request,//request: 根据您的设备协议，可能是1或129。
+                    2816, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
+                    1024,
+                    data, 4,
+                    timeout
+                )
+                if (result != null) {
+                    if (result < 0) {
+                        // 控制传输失败
+                        Log.d("USB", "Wrote data to device.  $result ")
+
+                        return
+                    }
+//                                result = connection?.controlTransfer(
+//                                64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
+//                                request,//request: 根据您的设备协议，可能是1或129。
+//                                    2861, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
+//                                index,
+//                                data, size,
+//                                timeout
+//                                )
+
                 }
-            }
-            val connection : UsbDeviceConnection? =null
-            if(usbDevice != null && connection != null){
-                    val intf = usbDevice!!.getInterface(0)
-                    var  Data = usbDevice!!.serialNumber
-                    connection?.claimInterface(intf,true)
-                    if (intf.endpointCount > 0) {
-                            val y0 = listOf("11", "12", "13")
-                            val i =  indexData % 3
-                            val b1: Byte = Integer.parseInt(y0[i], 16).toByte()
-                            val b2: Byte = Integer.parseInt("ff", 16).toByte()
-
-                            val data = byteArrayOf(0, 120,b1,b2)
-
-                            val size = data.size
-
-                            val request = 1
-
-                            val value = (0x03 shl 8) or 54619
-
-                            val index = 1024
-                            val timeout = 0 // 超时时间（毫秒）
-
-
-                            // 第一个控制传输
-
-                            // 第一个控制传输
-                            var result: Int? = connection?.controlTransfer(
-                                64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
-                                request,//request: 根据您的设备协议，可能是1或129。
-                                2560, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
-                                index,
-                                byteArrayOf(0) , 1,
-                                timeout
-                            )
-                            if (result != null) {
-                                if (result < 0) {
-                                    // 控制传输失败
-                                    Log.d("USB", "Wrote data to device.  $result ")
-
-                                    return
-                                }
-                                result = connection?.controlTransfer(
-                                64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
-                                request,//request: 根据您的设备协议，可能是1或129。
-                                2816, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
-                                index,
-                                data, size,
-                                timeout
-                                )
-
-                            }
-                            Log.d("USB", "Wrote data to device------------. $result")
+                Log.d("USB", "Wrote data to device------------. $result")
 //                        result = connection?.controlTransfer(requestType, request, value, index, data, size, timeout);
 //                        if (result != null) {
 //                            if (result < 0) {
@@ -212,26 +204,21 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
 //                            )
 
 //                            callFlutter(    bytesSent.toString())
-                    }
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Log.d(  "USB", "$e")
+            Log.d("USB", "$e")
 
         }
 
     }
 
     fun closeConnection() {
-        val usbDevice: UsbDevice? = null
-        val connection: UsbDeviceConnection? = null
-        if (usbDevice != null && connection != null) {
 
-            val intf = usbDevice!!.getInterface(0)
-            connection?.releaseInterface(intf)
+//            connection?.releaseInterface(intf)
             connection?.close()
 
-        }
+
     }
 
 

@@ -3,6 +3,7 @@ package com.chenyeju.flutter_uvc_camera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.os.Build
+import android.view.KeyEvent
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -18,6 +19,10 @@ class MainActivity : FlutterFragmentActivity() {
     private val vendorId = 52281
     private val productId =  52225
 
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        return super.onKeyDown(keyCode, event)
+    }
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
