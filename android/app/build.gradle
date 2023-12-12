@@ -25,7 +25,6 @@ if (flutterVersionName == null) {
 android {
     compileSdkVersion 31
     namespace "com.chenyeju.flutter_uvc_camera"
-    ndkVersion '21.0.6113669'
     viewBinding {
         enabled = true
     }
@@ -75,7 +74,6 @@ flutter {
 }
 
 dependencies {
-    implementation 'com.github.jiangdongguo.AndroidUSBCamera:libausbc:3.3.3'
+    implementation project(':libausbc')
     implementation "androidx.constraintlayout:constraintlayout:2.1.4"
-
 }
