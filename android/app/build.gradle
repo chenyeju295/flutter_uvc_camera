@@ -77,4 +77,6 @@ dependencies {
     implementation 'com.github.jiangdongguo.AndroidUSBCamera:libausbc:3.3.3'
     implementation 'com.github.jiangdongguo.AndroidUSBCamera:libuvc:3.3.3'
     implementation "androidx.constraintlayout:constraintlayout:2.1.4"
+//    implementation "com.github.Liuguihong:AndroidUVCCamera:1.0.0"
+    implementation 'androidx.appcompat:appcompat:1.6.1'
 }

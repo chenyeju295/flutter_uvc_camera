@@ -1,7 +1,0 @@
-Executable : /Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja
-arguments : 
--C
-/Users/mac/Downloads/AndroidUSBCamera-master/libnative/.cxx/cmake/debug/x86_64
-nativelib
-jvmArgs : 
-

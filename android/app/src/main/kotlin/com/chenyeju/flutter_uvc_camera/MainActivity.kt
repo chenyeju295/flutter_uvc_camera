@@ -54,11 +54,10 @@ class MainActivity : FlutterFragmentActivity() {
                 "writeToDevice" -> {
                     if(call.arguments is Int){
                     mUVCCameraFragment.writeToDevice(call.arguments as Int)}
-                    result.success("Write attempt started")
                 }
                 "readFromDevice" -> {
                     // Implement reading logic here
-                    result.success("Read attempt started")
+                    mUVCCameraFragment.readDevice()
                 }
                 "closeConnection" -> {
                     mUVCCameraFragment.closeConnection()

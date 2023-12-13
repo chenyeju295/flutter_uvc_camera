@@ -84,6 +84,13 @@ class _MyHomePageState extends State<MyHomePage> {
                     setState(() {});
                   },
                   child: Text('writeToDevice')),
+              TextButton(
+                  onPressed: () {
+                    cameraController.readFromDevice(_counter);
+                    _counter++;
+                    setState(() {});
+                  },
+                  child: Text('readFromDevice')),
               const SizedBox(height: 20),
               TextButton(
                   onPressed: () {

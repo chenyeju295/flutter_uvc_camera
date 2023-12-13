@@ -1,7 +1,9 @@
 package com.chenyeju.flutter_uvc_camera
 
-import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDeviceConnection
+import android.hardware.usb.UsbRequest
+import android.os.Build
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -16,6 +18,7 @@ import com.jiangdg.ausbc.render.env.RotateType
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
 import io.flutter.plugin.common.MethodChannel
+import java.nio.ByteBuffer
 
 
 open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFragment() {
@@ -140,70 +143,102 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
         _channel.invokeMethod("getDevicesList", list)
     }
 
+    fun readDevice(){
+        try {
+
+        var  usbDevice = getCtrlBlock()?.device
+        val usbRequest = UsbRequest()
+       var   endpoint = usbDevice?.getInterface(0)?.getEndpoint(0)
+
+        if (endpoint!= null ){
+            usbRequest.initialize(connection,endpoint)
+            var buffer = ByteArray(endpoint.maxPacketSize)
+            var byteBuffer  = ByteBuffer.allocate(endpoint.maxPacketSize)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                usbRequest.queue(byteBuffer)
+            }
+            buffer = byteBuffer.array()
+            // 执行阻塞读取操作
+                val received: Int? =
+                connection?.bulkTransfer(endpoint, buffer, buffer.size, 0)
+                if (received != null) {
+                    if (received > 0) {
+                        // 处理接收到的数据
+                        Log.d("TAG", "readDevice: " + String(buffer, 0, received))
+                    }
+
+            }
+        }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun writeToDevice(indexData: Int) {
         try {
             connection = getCtrlBlock()?.connection
+            val intf =getCtrlBlock()?.device?.getInterface(0)
             if (connection != null) {
+              var isOpen =  connection?.claimInterface(intf, true)
                 val y0 = listOf("11", "12", "13")
                 val i = indexData % 3
                 val b1: Byte = Integer.parseInt(y0[i], 16).toByte()
                 val b2: Byte = Integer.parseInt("ff", 16).toByte()
-
-                val data = byteArrayOf(0, 120, b1, b2)
-
-                val size = data.size
-
+                val data = byteArrayOf(0, 120, b1, b2,0x00, 0x00, 0x00, 0x00)
+                val buffer1 = byteArrayOf(0x00, 0x82.toByte(), 0xD5.toByte(), 0x4B.toByte(), 0x00, 0x00, 0x00, 0x00)
+                val bufferSize = buffer1.size
+                val requestType =  UsbConstants.USB_TYPE_VENDOR  or  UsbConstants.USB_DIR_OUT
+                val readType =  161
+                val dataSize = data.size
                 val request = 1
-
-                val value = 54619
-
-                val index = 1
+                val request2 = 129
+                val value = 2560
+                val value2 = 2816
+                val index = 1024
                 val timeout = 0 // 超时时间（毫秒）
 
 
                 // 第一个控制传输
-                var result: Int? = connection?.controlTransfer(
-                    64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
-                    request,//request: 根据您的设备协议，可能是1或129。
-                    2816, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
-                    1024,
-                    data, 4,
+                val result: Int? = connection?.controlTransfer(
+                    64,
+                    1,
+                    value,
+                    0,
+                    byteArrayOf(0),
+                    1,
                     timeout
                 )
+
                 if (result != null) {
                     if (result < 0) {
                         // 控制传输失败
-                        Log.d("USB", "Wrote data to device.  $result ")
-
+                        Log.d("USB", "Wrote data to device------------${buffer1.toString()}. $result")
                         return
                     }
-//                                result = connection?.controlTransfer(
-//                                64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
-//                                request,//request: 根据您的设备协议，可能是1或129。
-//                                    2861, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
-//                                index,
-//                                data, size,
-//                                timeout
-//                                )
+//                    val result2: Int? = connection?.controlTransfer(
+//                        requestType ,
+//                        request,
+//                        value2,
+//                        index,
+//                        data,
+//                        size,
+//                        timeout
+//                    )
+                    val result2: Int? = connection?.controlTransfer(
+                        readType ,
+                        request2,
+                        value2,
+                        index,
+                        data,
+                        dataSize,
+                        timeout
+                    )
 
+                    Log.d("USB", "Wrote data to device------------$buffer1. $result")
+                    Log.d("USB", "Wrote data to device------------$data. $result2")
+//
                 }
-                Log.d("USB", "Wrote data to device------------. $result")
-//                        result = connection?.controlTransfer(requestType, request, value, index, data, size, timeout);
-//                        if (result != null) {
-//                            if (result < 0) {
-//                                // 控制传输失败
-//                                return;
-//                            }
-//                        }
-
-//                             bytesSent = connection?.bulkTransfer(
-//                                endpoint,
-//                                data,
-//                                size,
-//                                timeout
-//                            )
-
-//                            callFlutter(    bytesSent.toString())
             }
         } catch (e: Exception) {
             e.printStackTrace()

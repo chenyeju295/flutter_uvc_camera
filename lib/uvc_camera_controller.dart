@@ -122,4 +122,8 @@ class UVCCameraController {
     _takePicturePath = result;
     debugPrint("拍照$result");
   }
+
+  void readFromDevice(int counter) {
+    _cameraChannel.invokeMethod('readFromDevice', counter);
+  }
 }
