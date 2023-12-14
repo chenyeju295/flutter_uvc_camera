@@ -16,10 +16,6 @@ class MainActivity : FlutterFragmentActivity() {
     private lateinit var channel: MethodChannel
     private lateinit var mUVCCameraFragment : UVCCameraFragment
 
-    private val vendorId = 52281
-    private val productId =  52225
-
-
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         return super.onKeyDown(keyCode, event)
     }

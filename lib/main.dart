@@ -61,9 +61,11 @@ class _MyHomePageState extends State<MyHomePage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               const SizedBox(height: 40),
+              Text(cameraController.getCameraState.toString()),
+              const SizedBox(height: 40),
               TextButton(
                   onPressed: () {
-                    cameraController.initializeCamera(width: 640, height: 480);
+                    cameraController.setCameraPreviewSize(width: 640, height: 480);
                     setState(() {});
                   },
                   child: Text('刷新摄像')),

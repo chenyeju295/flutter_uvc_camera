@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * @author Created by jiangdg on 2023/2/3
  */
-abstract class CameraFragment : BaseFragment(), ICameraStateCallBack {
+abstract class CustomCameraFragment : BaseFragment(), ICameraStateCallBack {
     private var mCameraView: IAspectRatio? = null
     private var mCameraClient: MultiCameraClient? = null
     private val mCameraMap = hashMapOf<Int, MultiCameraClient.ICamera>()
@@ -854,7 +854,7 @@ abstract class CameraFragment : BaseFragment(), ICameraStateCallBack {
             }
         }.apply {
             getCurrentCamera()?.openCamera(this, getCameraRequest())
-            getCurrentCamera()?.setCameraStateCallBack(this@CameraFragment)
+            getCurrentCamera()?.setCameraStateCallBack(this@CustomCameraFragment)
         }
     }
 

@@ -1,7 +1,9 @@
 package com.chenyeju.flutter_uvc_camera
 
+import android.content.Context
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDeviceConnection
+import android.hardware.usb.UsbManager
 import android.hardware.usb.UsbRequest
 import android.os.Build
 import android.util.Log
@@ -21,13 +23,13 @@ import io.flutter.plugin.common.MethodChannel
 import java.nio.ByteBuffer
 
 
-open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFragment() {
+open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CustomCameraFragment() {
     private var viewBinding: ActivityMainBinding? = null
     private val _channel = channel
     private var previewWidth: Int? = null
     private var previewHeight: Int? = null
     private var connection: UsbDeviceConnection? = null
-
+    private var manager: UsbManager? = null
     init {
         if (arguments is Map<*, *>) {
             previewWidth = (arguments["height"] as Number).toInt()
@@ -74,10 +76,12 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
             ICameraStateCallBack.State.CLOSED -> handleCameraClosed()
             ICameraStateCallBack.State.ERROR -> handleCameraError(msg)
         }
+        Log.d( "Camera", "------>CameraState: $code") ;
     }
 
     private fun handleCameraError(msg: String?) {
         _channel.invokeMethod("CameraState", "ERROR：$msg")
+
     }
 
     private fun handleCameraClosed() {
@@ -135,12 +139,12 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
 
     fun getAllPreviewSize() {
         val list = getAllPreviewSizes()
-        _channel.invokeMethod("getAllPreviewSizes", list)
+        _channel.invokeMethod("getAllPreviewSizes", list.toString())
     }
 
     fun getDevicesList() {
         val list = getDeviceList()
-        _channel.invokeMethod("getDevicesList", list)
+        _channel.invokeMethod("getDevicesList", list.toString())
     }
 
     fun readDevice(){
@@ -177,16 +181,20 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
 
     fun writeToDevice(indexData: Int) {
         try {
+            val usbDevice = getCtrlBlock()?.device
             connection = getCtrlBlock()?.connection
             val intf =getCtrlBlock()?.device?.getInterface(0)
+
             if (connection != null) {
               var isOpen =  connection?.claimInterface(intf, true)
                 val y0 = listOf("11", "12", "13")
-                val i = indexData % 3
+                var i = 0
+
+                i = indexData % 3
                 val b1: Byte = Integer.parseInt(y0[i], 16).toByte()
                 val b2: Byte = Integer.parseInt("ff", 16).toByte()
                 val data = byteArrayOf(0, 120, b1, b2,0x00, 0x00, 0x00, 0x00)
-                val buffer1 = byteArrayOf(0x00, 0x82.toByte(), 0xD5.toByte(), 0x4B.toByte(), 0x00, 0x00, 0x00, 0x00)
+                val buffer1 = byteArrayOf(0x00, 0x82.toByte(), 0xD54B.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00)
                 val bufferSize = buffer1.size
                 val requestType =  UsbConstants.USB_TYPE_VENDOR  or  UsbConstants.USB_DIR_OUT
                 val readType =  161
@@ -204,9 +212,9 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
                     64,
                     1,
                     value,
-                    0,
-                    byteArrayOf(0),
-                    1,
+                    index,
+                   buffer1,
+                    bufferSize,
                     timeout
                 )
 
@@ -234,9 +242,9 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
                         dataSize,
                         timeout
                     )
+                    Log.d("USB", "Wrote data to device------------$data. $result2")
 
                     Log.d("USB", "Wrote data to device------------$buffer1. $result")
-                    Log.d("USB", "Wrote data to device------------$data. $result2")
 //
                 }
             }
@@ -249,11 +257,9 @@ open class UVCCameraFragment(channel: MethodChannel, arguments: Any?) : CameraFr
     }
 
     fun closeConnection() {
-
-//            connection?.releaseInterface(intf)
+            val intf =  getCurrentCamera()?.device?.getInterface(0)
+            connection?.releaseInterface(intf)
             connection?.close()
-
-
     }
 
 
