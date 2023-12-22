@@ -42,7 +42,8 @@ class UVCCameraController {
   }
 
   Future<void> initializeCamera({required double width, required double height}) async {
-    await _cameraChannel.invokeMethod('initializeCamera', {"width": width, "height": height});
+    await _cameraChannel
+        .invokeMethod('initializeCamera', {"width": width, "height": height, "aspectRatio": width / height});
   }
 
   Future<void> setCameraPreviewSize({required double width, required double height}) async {
