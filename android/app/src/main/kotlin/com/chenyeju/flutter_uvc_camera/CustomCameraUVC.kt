@@ -476,6 +476,16 @@ class CameraUVC(ctx: Context, device: UsbDevice) : MultiCameraClient.ICamera(ctx
         mUvcCamera?.setButtonCallback(callback)
     }
 
+    fun writeCommand(paramInt1:Int, paramInt2:Int,  paramInt3:Int,   paramArrayOfbyte: ByteArray) {
+        mUvcCamera?.nativeXuWrite(paramInt1,paramInt2,paramInt3,paramArrayOfbyte)
+    }
+
+    fun readCommand(paramInt1:Int,  paramInt2:Int, paramInt3:Int,  paramArrayOfbyte: ByteArray) {
+        mUvcCamera?.nativeXuRead(paramInt1,paramInt2,paramInt3,paramArrayOfbyte)
+    }
+
+
+
 
     /**
      * Set saturation

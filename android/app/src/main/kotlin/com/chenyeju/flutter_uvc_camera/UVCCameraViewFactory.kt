@@ -92,7 +92,8 @@ class UVCCameraViewFactory(private var channel: MethodChannel) : PlatformViewFac
     }
 
     fun writeToDevice(i: Int) {
-//        cameraView.writeToDevice(i)
+        cameraView.writeToDevice(i)
+
     }
 
     fun closeCamera() {

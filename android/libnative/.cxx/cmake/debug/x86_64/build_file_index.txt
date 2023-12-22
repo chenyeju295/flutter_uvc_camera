@@ -1,0 +1,1 @@
+/Users/mac/Downloads/AndroidUSBCamera-master/libnative/src/main/cpp/CMakeLists.txt
