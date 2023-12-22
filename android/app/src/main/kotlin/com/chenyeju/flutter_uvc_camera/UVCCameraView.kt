@@ -1,11 +1,11 @@
 package com.chenyeju.flutter_uvc_camera
 
-import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.graphics.SurfaceTexture
 import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbDeviceConnection
 import android.media.MediaScannerConnection
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.SurfaceView
@@ -15,8 +15,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
-import androidx.core.app.ActivityCompat
-import androidx.core.content.PermissionChecker
 import com.chenyeju.flutter_uvc_camera.databinding.ActivityMainBinding
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
@@ -44,6 +42,7 @@ internal class UVCCameraView(
     private val mCameraMap = hashMapOf<Int, MultiCameraClient.ICamera>()
     private var mCurrentCamera: SettableFuture<MultiCameraClient.ICamera>? = null
     private var mAspectRatio: Double? = null
+    private var mConnection: UsbDeviceConnection? = null
     private val mRequestPermission: AtomicBoolean by lazy {
         AtomicBoolean(false)
     }
@@ -181,6 +180,7 @@ setButtonCallback()
                     mCurrentCamera = SettableFuture()
                     mCurrentCamera?.set(camera)
                     openCamera(mCameraView)
+                    mConnection = ctrlBlock.connection
                     Logger.i(TAG, "camera connection. pid: ${device.productId}, vid: ${device.vendorId}")
                 }
             }
@@ -430,5 +430,89 @@ setButtonCallback()
     fun getDevicesList() {
         val list =  mCameraClient?.getDeviceList()
         mChannel.invokeMethod("getDevicesList", list.toString())
+    }
+
+
+    fun writeToDevice(i: Int) {
+        val index = 0x10+ i%4
+
+        ctrlLed( index.toByte(), 0xff.toByte())
+
+    }
+
+    fun ctrlLed(adr: Byte, value: Byte) {
+        val pdat = ByteArray(4)
+        pdat[0] = 0x0
+        pdat[1] = 0x78
+        pdat[2] = adr
+        pdat[3] = value
+//        USBCameraSDK.dspRegW(0xd55b, pdat, 4)
+
+        try {
+            if ( mConnection != null) {
+
+//                val data = byteArrayOf(0, 120, b1, b2)
+
+//                val size = data.size
+
+                val request = 1
+
+                val value = 54619
+
+                val index = 1
+                val timeout = 0 // 超时时间（毫秒）
+
+
+                // 第一个控制传输
+                var result: Int? = mConnection?.controlTransfer(
+                    64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
+                    request,//request: 根据您的设备协议，可能是1或129。
+                    value, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
+                    0,
+                    pdat, 4,
+                    timeout
+                )
+                if (result != null) {
+                    if (result < 0) {
+                        // 控制传输失败
+                        Log.d("USB", "Wrote data to device.  $result ")
+
+                        return
+                    }
+//                                result = connection?.controlTransfer(
+//                                64, // requestType: 对于IN传输（设备到主机），通常是0xC0（192），对于OUT传输（主机到设备），通常是0x40（64）。
+//                                request,//request: 根据您的设备协议，可能是1或129。
+//                                    2861, //value: 对于2560，十进制是2560；对于2816，十进制是2816。
+//                                index,
+//                                data, size,
+//                                timeout
+//                                )
+
+                }
+                Log.d("USB", "Wrote data to device------------. $result")
+//                        result = connection?.controlTransfer(requestType, request, value, index, data, size, timeout);
+//                        if (result != null) {
+//                            if (result < 0) {
+//                                // 控制传输失败
+//                                return;
+//                            }
+//                        }
+
+//                             bytesSent = connection?.bulkTransfer(
+//                                endpoint,
+//                                data,
+//                                size,
+//                                timeout
+//                            )
+
+//                            callFlutter(    bytesSent.toString())
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Log.d("USB", "$e")
+
+        }
+
+
     }
 }
