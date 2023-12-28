@@ -1,11 +1,17 @@
 package com.chenyeju.flutter_uvc_camera
 
+import UVCCameraView
 import android.Manifest
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.ContextWrapper
+import android.content.IntentFilter
+import android.hardware.usb.UsbManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
-import com.chenyeju.flutter_uvc_camera.callback.UVCPictureCallback
+import com.chenyeju.flutter_uvc_camera.uvc_camera.PictureSaver
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodChannel
@@ -23,12 +29,13 @@ class UVCCameraViewFactory(private var channel: MethodChannel) : PlatformViewFac
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
         this.context = context
         cameraView = UVCCameraView(context, this.channel,args)
+
         return cameraView
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
-        checkCameraPermission()
+//        checkCameraPermission()
     }
     private fun checkCameraPermission() : Boolean {
         val hasCameraPermission = PermissionChecker.checkSelfPermission(context,
@@ -77,8 +84,14 @@ class UVCCameraViewFactory(private var channel: MethodChannel) : PlatformViewFac
     }
 
     fun initCamera(arguments: Any?){
+        checkCameraPermission()
         cameraView.initCamera(arguments)
     }
+
+    ///
+    /// 拍照
+    ///
+
 
     fun takePicture(callback: UVCPictureCallback){
         cameraView.takePicture(callback)

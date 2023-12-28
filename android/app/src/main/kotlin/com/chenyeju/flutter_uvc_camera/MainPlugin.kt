@@ -1,7 +1,6 @@
 package com.chenyeju.flutter_uvc_camera
 
 import android.os.Build
-import com.chenyeju.flutter_uvc_camera.callback.UVCPictureCallback
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
