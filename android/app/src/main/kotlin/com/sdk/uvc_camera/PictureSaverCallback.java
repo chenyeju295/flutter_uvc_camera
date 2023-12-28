@@ -1,4 +1,4 @@
-package com.chenyeju.flutter_uvc_camera.uvc_camera;
+package com.sdk.uvc_camera;
 
 public interface PictureSaverCallback {
     // 回调接口

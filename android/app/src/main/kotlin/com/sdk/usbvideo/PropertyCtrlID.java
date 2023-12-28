@@ -1,4 +1,4 @@
-package com.chenyeju.flutter_uvc_camera.usbvideo;
+package com.sdk.usbvideo;
 
 public class PropertyCtrlID {
     public static final long PU_BRIGHTNESS = 0x000001;	    // D0: Brightness

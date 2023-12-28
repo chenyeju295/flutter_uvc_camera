@@ -1,4 +1,4 @@
-package com.chenyeju.flutter_uvc_camera
+package com.sdk
 
 interface UVCPictureCallback {
     fun onPictureTaken(path: String)

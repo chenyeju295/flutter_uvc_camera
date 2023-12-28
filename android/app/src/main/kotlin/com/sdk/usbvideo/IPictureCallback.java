@@ -1,4 +1,4 @@
-package com.chenyeju.flutter_uvc_camera.usbvideo;
+package com.sdk.usbvideo;
 
 public interface IPictureCallback {
     void onPictureFrame(byte [] pbuf, int size);

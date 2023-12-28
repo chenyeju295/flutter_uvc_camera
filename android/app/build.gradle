@@ -39,9 +39,7 @@ android {
 
     sourceSets {
         main {
-            jni {
-                srcDirs 'src/main/jni', 'src/main/jniLibs'
-            }
+            jniLibs.srcDirs = ['src/main/jniLibs']
         }
         main.java.srcDirs += 'src/main/kotlin'
     }
@@ -56,6 +54,10 @@ android {
         targetSdkVersion 27
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+
+        ndk {
+            abiFilters  "armeabi","x86","armeabi-v7a","arm64-v8a"
+        }
     }
 
     buildTypes {

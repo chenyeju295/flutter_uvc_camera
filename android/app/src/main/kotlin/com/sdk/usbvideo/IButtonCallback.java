@@ -1,4 +1,4 @@
-package com.chenyeju.flutter_uvc_camera.usbvideo;
+package com.sdk.usbvideo;
 
 public interface IButtonCallback {
     void onButton(int button, int state);

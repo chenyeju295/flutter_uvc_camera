@@ -1,4 +1,4 @@
-package com.chenyeju.flutter_uvc_camera.uvc_camera;
+package com.sdk.uvc_camera;
 
 import android.content.Context;
 import android.util.AttributeSet;

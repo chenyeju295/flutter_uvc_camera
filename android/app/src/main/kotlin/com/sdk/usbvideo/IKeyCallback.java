@@ -1,5 +1,5 @@
 
-package com.chenyeju.flutter_uvc_camera.usbvideo;
+package com.sdk.usbvideo;
 
 public interface IKeyCallback {
     void onKeyStatus(int state);

@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity2">
 
-    <com.chenyeju.flutter_uvc_camera.uvc_camera.CustomTextureView
+    <com.sdk.uvc_camera.CustomTextureView
         android:id="@+id/textureView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

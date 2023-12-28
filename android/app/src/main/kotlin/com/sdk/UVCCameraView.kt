@@ -1,3 +1,5 @@
+package com.sdk
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -7,7 +9,6 @@ import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.graphics.SurfaceTexture
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
@@ -19,14 +20,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
-import com.chenyeju.flutter_uvc_camera.UVCPictureCallback
 import com.chenyeju.flutter_uvc_camera.databinding.ActivityMainBinding
-import com.chenyeju.flutter_uvc_camera.usbvideo.IButtonCallback
-import com.chenyeju.flutter_uvc_camera.usbvideo.USBCameraSDK
-import com.chenyeju.flutter_uvc_camera.uvc_camera.CustomTextureView
-import com.chenyeju.flutter_uvc_camera.uvc_camera.PictureSaver
-import com.chenyeju.flutter_uvc_camera.uvc_camera.PictureSaverCallback
-import com.chenyeju.flutter_uvc_camera.uvc_camera.PictureSaverInfo
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodChannel
@@ -49,10 +43,10 @@ internal class UVCCameraView(
     private var mAspectRatio: Double? = null
 
     private val ACTION_USB_PERMISSION = "REQUEST_USB_PERMISSION"
-    private var mTextureView: CustomTextureView? = null
+    private var mTextureView: com.sdk.uvc_camera.CustomTextureView? = null
 
     private var mContentResolver: ContentResolver? = null
-    private var mPictureSaver: PictureSaver? = null
+    private var mPictureSaver: com.sdk.uvc_camera.PictureSaver? = null
 
     override fun onFlutterViewDetached() {
         super.onFlutterViewDetached()
@@ -83,7 +77,8 @@ internal class UVCCameraView(
         filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
         filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         mContext.registerReceiver(mUsbReceiver, filter)
-        mPictureSaver = PictureSaver(mPictureSaverCallback)
+        mPictureSaver =
+            com.sdk.uvc_camera.PictureSaver(mPictureSaverCallback)
         mContentResolver = getContentResolver()
 
         openUVCCamera()
@@ -128,9 +123,9 @@ internal class UVCCameraView(
             return
         }
         val fd = mUsbConnection?.fileDescriptor
-        USBCameraSDK.setPreviewSurface(null, previewW, previewH, 0)
+        com.sdk.usbvideo.USBCameraSDK.setPreviewSurface(null, previewW, previewH, 0)
         if (
-            USBCameraSDK.openCamera(
+            com.sdk.usbvideo.USBCameraSDK.openCamera(
                 fd!!,
                 0,
                 previewW,
@@ -147,7 +142,7 @@ internal class UVCCameraView(
         }
 
         // (方式一，通过UVC返回的button数据方式)
-        USBCameraSDK.setButtonCallback { button, state ->
+        com.sdk.usbvideo.USBCameraSDK.setButtonCallback { button, state ->
             if (button == 1 && state == 1) {
                 takePicture(
                     object : UVCPictureCallback {
@@ -190,12 +185,13 @@ internal class UVCCameraView(
     ///
     /// 拍照
     ///
-    private var mPictureSaverCallback: PictureSaverCallback = object : PictureSaverCallback {
-        override fun onMessage(msg: Int, info: PictureSaverInfo?) {
+    private var mPictureSaverCallback: com.sdk.uvc_camera.PictureSaverCallback = object :
+        com.sdk.uvc_camera.PictureSaverCallback {
+        override fun onMessage(msg: Int, info: com.sdk.uvc_camera.PictureSaverInfo?) {
             when (msg) {
-                PictureSaverCallback.MESSAGE_STOREIMAGE_ERR -> {}
+                com.sdk.uvc_camera.PictureSaverCallback.MESSAGE_STOREIMAGE_ERR -> {}
 
-                PictureSaverCallback.MESSAGE_STOREIMAGE_SUCCESS -> {
+                com.sdk.uvc_camera.PictureSaverCallback.MESSAGE_STOREIMAGE_SUCCESS -> {
 
                 }
 

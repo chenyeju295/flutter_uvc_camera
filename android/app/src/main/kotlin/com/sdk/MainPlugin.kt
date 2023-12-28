@@ -1,4 +1,4 @@
-package com.chenyeju.flutter_uvc_camera
+package com.sdk
 
 import android.os.Build
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -10,7 +10,7 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 class MainPlugin : FlutterPlugin, MethodCallHandler {
     private val channelName = "com.chenyeju.flutter_uvc_camera/channel"
     private lateinit var channel: MethodChannel
-    private lateinit var mUVCCameraViewFactory :UVCCameraViewFactory
+    private lateinit var mUVCCameraViewFactory : UVCCameraViewFactory
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, channelName )

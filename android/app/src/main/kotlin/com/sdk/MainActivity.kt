@@ -1,4 +1,4 @@
-package com.chenyeju.flutter_uvc_camera
+package com.sdk
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

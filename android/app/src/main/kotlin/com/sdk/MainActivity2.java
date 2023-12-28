@@ -1,4 +1,4 @@
-package com.chenyeju.flutter_uvc_camera;
+package com.sdk;
 
 import android.Manifest;
 import android.app.PendingIntent;
@@ -41,16 +41,16 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.chenyeju.flutter_uvc_camera.usbvideo.IButtonCallback;
-import com.chenyeju.flutter_uvc_camera.usbvideo.IDeviceInfoCallback;
-import com.chenyeju.flutter_uvc_camera.usbvideo.IKeyCallback;
-import com.chenyeju.flutter_uvc_camera.usbvideo.IPictureCallback;
-import com.chenyeju.flutter_uvc_camera.usbvideo.USBCameraSDK;
-import com.chenyeju.flutter_uvc_camera.uvc_camera.CustomTextureView;
-import com.chenyeju.flutter_uvc_camera.uvc_camera.PictureSaver;
-import com.chenyeju.flutter_uvc_camera.uvc_camera.PictureSaverCallback;
-import com.chenyeju.flutter_uvc_camera.uvc_camera.PictureSaverInfo;
-import com.chenyeju.flutter_uvc_camera.uvc_camera.Thumbnail;
+import com.sdk.usbvideo.IButtonCallback;
+import com.sdk.usbvideo.IDeviceInfoCallback;
+import com.sdk.sdk.usbvideo.IKeyCallback;
+import com.sdk.sdk.usbvideo.IPictureCallback;
+import com.sdk.sdk.usbvideo.USBCameraSDK;
+import com.sdk.sdk.uvc_camera.CustomTextureView;
+import com.sdk.sdk.uvc_camera.PictureSaver;
+import com.sdk.sdk.uvc_camera.PictureSaverCallback;
+import com.sdk.sdk.uvc_camera.PictureSaverInfo;
+import com.sdk.sdk.uvc_camera.Thumbnail;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;

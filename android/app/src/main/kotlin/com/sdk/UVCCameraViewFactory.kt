@@ -1,19 +1,6 @@
-package com.chenyeju.flutter_uvc_camera
+package com.sdk
 
-import UVCCameraView
-import android.Manifest
-import android.app.Activity
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.ContextWrapper
-import android.content.IntentFilter
-import android.hardware.usb.UsbManager
-import androidx.core.app.ActivityCompat
-import androidx.core.content.PermissionChecker
-import com.chenyeju.flutter_uvc_camera.uvc_camera.PictureSaver
-import io.flutter.embedding.engine.plugins.activity.ActivityAware
-import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
