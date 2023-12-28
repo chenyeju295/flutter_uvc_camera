@@ -43,14 +43,14 @@ import androidx.core.content.ContextCompat;
 
 import com.sdk.usbvideo.IButtonCallback;
 import com.sdk.usbvideo.IDeviceInfoCallback;
-import com.sdk.sdk.usbvideo.IKeyCallback;
-import com.sdk.sdk.usbvideo.IPictureCallback;
-import com.sdk.sdk.usbvideo.USBCameraSDK;
-import com.sdk.sdk.uvc_camera.CustomTextureView;
-import com.sdk.sdk.uvc_camera.PictureSaver;
-import com.sdk.sdk.uvc_camera.PictureSaverCallback;
-import com.sdk.sdk.uvc_camera.PictureSaverInfo;
-import com.sdk.sdk.uvc_camera.Thumbnail;
+import com.sdk.usbvideo.IKeyCallback;
+import com.sdk.usbvideo.IPictureCallback;
+import com.sdk.usbvideo.USBCameraSDK;
+import com.sdk.uvc_camera.CustomTextureView;
+import com.sdk.uvc_camera.PictureSaver;
+import com.sdk.uvc_camera.PictureSaverCallback;
+import com.sdk.uvc_camera.PictureSaverInfo;
+import com.sdk.uvc_camera.Thumbnail;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;

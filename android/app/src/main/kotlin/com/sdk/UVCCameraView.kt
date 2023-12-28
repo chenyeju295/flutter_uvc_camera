@@ -20,7 +20,8 @@ import android.view.View
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
-import com.chenyeju.flutter_uvc_camera.databinding.ActivityMainBinding
+import com.sdk.databinding.ActivityMainBinding
+import com.sdk.usbvideo.USBCameraSDK
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodChannel
@@ -67,11 +68,11 @@ internal class UVCCameraView(
         if (arguments is Map<*, *>) {
             mAspectRatio = (arguments["aspectRatio"] as? Number)?.toDouble()
         }
-        if (mAspectRatio != null) { previewW= (previewH * mAspectRatio!!).toInt() }
+//        if (mAspectRatio != null) { previewW= (previewH * mAspectRatio!!).toInt() }
         mTextureView = mViewBinding.textureView
         mTextureView?.surfaceTextureListener = mSurfaceTextureListener
         mTextureView?.setAspectRatio(previewW, previewH)
-//        checkCameraPermission()
+        checkCameraPermission()
         val filter = IntentFilter()
         filter.addAction(ACTION_USB_PERMISSION)
         filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
@@ -123,18 +124,9 @@ internal class UVCCameraView(
             return
         }
         val fd = mUsbConnection?.fileDescriptor
-        com.sdk.usbvideo.USBCameraSDK.setPreviewSurface(null, previewW, previewH, 0)
-        if (
-            com.sdk.usbvideo.USBCameraSDK.openCamera(
-                fd!!,
-                0,
-                previewW,
-                previewH,
-                0,
-                0
-            )
-            <0
-        ) {
+       USBCameraSDK.setPreviewSurface(mSurface, previewW, previewH, 0)
+        var re = USBCameraSDK.openCamera(fd!!, 0, previewW, previewH, 0, 0)
+        if (re <0) {
             mUsbConnection?.close()
             mUsbConnection = null
             Toast.makeText(mContext, "打开摄像头错误", Toast.LENGTH_SHORT).show()
@@ -142,7 +134,7 @@ internal class UVCCameraView(
         }
 
         // (方式一，通过UVC返回的button数据方式)
-        com.sdk.usbvideo.USBCameraSDK.setButtonCallback { button, state ->
+       USBCameraSDK.setButtonCallback { button, state ->
             if (button == 1 && state == 1) {
                 takePicture(
                     object : UVCPictureCallback {
