@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
+import com.chenyeju.flutter_uvc_camera.callback.UVCPictureCallback
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodChannel
