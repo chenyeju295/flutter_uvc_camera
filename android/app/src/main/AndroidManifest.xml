@@ -29,7 +29,7 @@
         tools:replace="android:label"
         >
         <activity
-            android:name=".MainActivity"
+            android:name=".MainActivity2"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/AppTheme"

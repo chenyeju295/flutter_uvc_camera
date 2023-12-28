@@ -58,9 +58,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
-import io.flutter.embedding.android.FlutterActivity;
-
-public class MainActivity extends AppCompatActivity {
+public class MainActivity2 extends AppCompatActivity {
     // 存储路径
     public static final String DCIM = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString();
 
@@ -321,10 +319,10 @@ public class MainActivity extends AppCompatActivity {
                     mHandler.sendEmptyMessage(MSG_GET_USB_PERMISSION);
                 }
             } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
-                Toast.makeText(MainActivity.this, "Usb device attached", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity2.this, "Usb device attached", Toast.LENGTH_SHORT).show();
                 //mHandler.sendEmptyMessage(MSG_OPENDEVICE);
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-                Toast.makeText(MainActivity.this, "Usb device detached", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity2.this, "Usb device detached", Toast.LENGTH_SHORT).show();
                 mHandler.sendEmptyMessage(MSG_CLOSEDEVICE);
             }
         }
@@ -367,7 +365,7 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        final Toast toast = Toast.makeText(MainActivity.this, "onButton(button=" + button + "; " +
+                        final Toast toast = Toast.makeText(MainActivity2.this, "onButton(button=" + button + "; " +
                                 "state=" + state + ")", Toast.LENGTH_SHORT);
                         toast.show();
                     }
@@ -478,7 +476,7 @@ public class MainActivity extends AppCompatActivity {
                     PictureSaverInfo info = (PictureSaverInfo)msg.obj;
                     Uri uri = insertImageToMediaStore(mContentResolver, info.title, info.pathname, info.dateTaken, info.size, info.w, info.h);
                     if (uri == null) {
-                        Toast.makeText(MainActivity.this, "图片插入媒体库错误", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity2.this, "图片插入媒体库错误", Toast.LENGTH_SHORT).show();
                         snapshot_release(1);
                         return;
                     }
@@ -496,7 +494,7 @@ public class MainActivity extends AppCompatActivity {
                         Bitmap thumbnail1 = Thumbnail.createThumbnailBitmap(info.pathname, inSampleSize);
                         Bitmap thumbnail2 = Thumbnail.createSquareBitmap(thumbnail1);
                         if (thumbnail1 == null) {
-                            Toast.makeText(MainActivity.this, "创建缩略图错误", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity2.this, "创建缩略图错误", Toast.LENGTH_SHORT).show();
                             snapshot_release(1);
                             return;
                         }
@@ -662,9 +660,9 @@ public class MainActivity extends AppCompatActivity {
         ctrlLed(m_adr, (byte)0);
 
         if (err > 0) {
-            Toast.makeText(MainActivity.this, "存储图片错误", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity2.this, "存储图片错误", Toast.LENGTH_SHORT).show();
         } else {
-            Toast.makeText(MainActivity.this, "存储图片成功", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity2.this, "存储图片成功", Toast.LENGTH_SHORT).show();
         }
         USBCameraSDK.setPictureCallback(null);
         mBtnSnapshot.setEnabled(true);

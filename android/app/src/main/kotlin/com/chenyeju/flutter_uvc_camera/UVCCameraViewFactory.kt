@@ -20,10 +20,9 @@ import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
 
 
-class UVCCameraViewFactory(private var channel: MethodChannel) : PlatformViewFactory(StandardMessageCodec.INSTANCE),ActivityAware{
+class UVCCameraViewFactory(private var channel: MethodChannel) : PlatformViewFactory(StandardMessageCodec.INSTANCE){
     private lateinit var cameraView : UVCCameraView
     private lateinit var context: Context
-    private var activity: Activity? = null
 
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
@@ -33,65 +32,10 @@ class UVCCameraViewFactory(private var channel: MethodChannel) : PlatformViewFac
         return cameraView
     }
 
-    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        activity = binding.activity
-//        checkCameraPermission()
-    }
-    private fun checkCameraPermission() : Boolean {
-        val hasCameraPermission = PermissionChecker.checkSelfPermission(context,
-            Manifest.permission.CAMERA
-        )
-        val hasStoragePermission =
-            PermissionChecker.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        if (hasCameraPermission != PermissionChecker.PERMISSION_GRANTED) {
-            if (activity == null) {
-                return false
-            }
-            if (ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity!!,
-                    Manifest.permission.CAMERA
-                )
-            ) {
-                channel.invokeMethod(
-                    "callFlutter",
-                    "You have already denied permission access. Go to the Settings page to turn on permissions\n"
-                )
-            }
-            ActivityCompat.requestPermissions(
-                activity!!,
-                arrayOf(
-                    Manifest.permission.CAMERA,
-//                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                ),
-                0
-            )
-            return false
-        }
-        return true
-    }
-
-
-    override fun onDetachedFromActivityForConfigChanges() {
-        activity = null
-    }
-
-    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activity = binding.activity
-    }
-
-    override fun onDetachedFromActivity() {
-        activity = null
-    }
 
     fun initCamera(arguments: Any?){
-        checkCameraPermission()
         cameraView.initCamera(arguments)
     }
-
-    ///
-    /// 拍照
-    ///
-
 
     fun takePicture(callback: UVCPictureCallback){
         cameraView.takePicture(callback)
