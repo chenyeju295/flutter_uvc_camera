@@ -65,10 +65,10 @@ class _MyHomePageState extends State<MyHomePage> {
               const SizedBox(height: 40),
               TextButton(
                   onPressed: () {
-                    cameraController.setCameraPreviewSize(width: 640, height: 480);
+                    cameraController.openUVCCamera();
                     setState(() {});
                   },
-                  child: Text('刷新摄像')),
+                  child: Text('打开摄像')),
               const SizedBox(height: 20),
               SizedBox(child: UVCCameraView(width: 300, height: 300)),
               const SizedBox(height: 20),

@@ -24,6 +24,10 @@ class UVCCameraViewFactory(private var channel: MethodChannel) : PlatformViewFac
         cameraView.initCamera(arguments)
     }
 
+    fun openUVCCamera(){
+        cameraView.openUVCCamera()
+    }
+
     fun takePicture(callback: UVCPictureCallback){
         cameraView.takePicture(callback)
     }

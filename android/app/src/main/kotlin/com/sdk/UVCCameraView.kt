@@ -22,6 +22,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
 import com.sdk.databinding.ActivityMainBinding
 import com.sdk.usbvideo.USBCameraSDK
+import com.sdk.uvc_camera.PictureSaverCallback
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodChannel
@@ -81,12 +82,9 @@ internal class UVCCameraView(
         mPictureSaver =
             com.sdk.uvc_camera.PictureSaver(mPictureSaverCallback)
         mContentResolver = getContentResolver()
-
-        openUVCCamera()
-
     }
 
-    private fun openUVCCamera() {
+    fun openUVCCamera() {
 
         mUsbManager = mContext.getSystemService(Context.USB_SERVICE ) as UsbManager
         val devMap: HashMap<String, UsbDevice>? = mUsbManager?.deviceList
@@ -177,20 +175,18 @@ internal class UVCCameraView(
     ///
     /// 拍照
     ///
-    private var mPictureSaverCallback: com.sdk.uvc_camera.PictureSaverCallback = object :
-        com.sdk.uvc_camera.PictureSaverCallback {
-        override fun onMessage(msg: Int, info: com.sdk.uvc_camera.PictureSaverInfo?) {
+    private var mPictureSaverCallback: PictureSaverCallback =
+        PictureSaverCallback { msg, _ ->
             when (msg) {
-                com.sdk.uvc_camera.PictureSaverCallback.MESSAGE_STOREIMAGE_ERR -> {}
+              PictureSaverCallback.MESSAGE_STOREIMAGE_ERR -> {}
 
-                com.sdk.uvc_camera.PictureSaverCallback.MESSAGE_STOREIMAGE_SUCCESS -> {
+           PictureSaverCallback.MESSAGE_STOREIMAGE_SUCCESS -> {
 
                 }
 
                 else -> {}
             }
         }
-    }
 
 
     private fun checkCameraPermission() : Boolean {
@@ -235,7 +231,17 @@ internal class UVCCameraView(
     }
 
     fun writeToDevice(i: Int) {
+      val index = 16+ i%4
+        ctrlLed( index.toByte(), -1)
+    }
 
+    fun ctrlLed(adr: Byte, value: Byte) {
+        val data = ByteArray(4)
+        data[0] = 0x0
+        data[1] = 0x78
+        data[2] = adr
+        data[3] = value
+        USBCameraSDK.dspRegW(m_dsp_adr, data, 4)
     }
 
     fun closeCamera() {

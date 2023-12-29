@@ -28,6 +28,9 @@ class MainPlugin : FlutterPlugin, MethodCallHandler {
             "initializeCamera" -> {
                 mUVCCameraViewFactory.initCamera(call.arguments)
             }
+            "openUVCCamera" -> {
+                mUVCCameraViewFactory.openUVCCamera()
+            }
             "takePicture" -> {
                 mUVCCameraViewFactory.takePicture(
                     object : UVCPictureCallback {

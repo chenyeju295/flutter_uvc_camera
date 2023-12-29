@@ -50,6 +50,10 @@ class UVCCameraController {
     await _cameraChannel.invokeMethod('initializeCamera', {"width": width, "height": height});
   }
 
+  Future<void> openUVCCamera() async {
+    await _cameraChannel.invokeMethod('openUVCCamera');
+  }
+
   Future<void> connectToUsbDevice() async {
     try {
       final result = await _cameraChannel.invokeMethod('connectToUsbDevice');
