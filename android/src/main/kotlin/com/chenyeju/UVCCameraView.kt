@@ -506,9 +506,7 @@ internal class UVCCameraView(
     private fun isCameraOpened() = getCurrentCamera()?.isCameraOpened()  ?: false
 
     fun takePicture(callback: UVCPictureCallback) {
-        val date = mDateFormat.format(System.currentTimeMillis())
-        val title = "IMG_AUSBC_$date"
-        val displayName =  "$title.jpg"
+
         if (!isCameraOpened()) {
             callFlutter("摄像头未打开")
             setCameraERRORState("设备未打开")
@@ -535,7 +533,7 @@ internal class UVCCameraView(
                 callback.onError(error ?: "未知错误")
             }
 
-        }, savePath = "$mCameraDir/$displayName")
+        })
     }
 
 }
