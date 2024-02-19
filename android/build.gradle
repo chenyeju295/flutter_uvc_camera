@@ -1,3 +1,5 @@
+package android
+
 group 'com.example.flutter_uvc_camera'
 version '1.0-SNAPSHOT'
 

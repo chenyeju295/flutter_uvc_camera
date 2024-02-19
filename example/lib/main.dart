@@ -1,10 +1,5 @@
-import 'dart:io';
-
-// import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter_uvc_camera/uvc_camera_controller.dart';
-import 'package:flutter_uvc_camera/uvc_camera_view.dart';
 
 import 'camera.dart';
 
@@ -20,7 +15,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  int _counter = 0;
   final cameraController = UVCCameraController();
   String? _picturePath;
 
