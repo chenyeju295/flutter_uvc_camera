@@ -1,7 +1,6 @@
-package com.sdk
+package com.chenyeju
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Application
 import android.app.Service
@@ -12,8 +11,6 @@ import android.graphics.SurfaceTexture
 import android.hardware.usb.UsbDevice
 import android.media.MediaScannerConnection
 import android.os.Environment
-import android.os.Handler
-import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.SurfaceView
@@ -24,8 +21,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
+import com.chenyeju.databinding.ActivityMainBinding
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
 import com.jiangdg.ausbc.callback.ICaptureCallBack
@@ -38,7 +35,6 @@ import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
 import com.jiangdg.usb.USBMonitor
 import com.jiangdg.uvc.IButtonCallback
-import com.sdk.databinding.ActivityMainBinding
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
 import java.text.SimpleDateFormat

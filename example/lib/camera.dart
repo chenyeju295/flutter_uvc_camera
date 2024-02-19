@@ -16,7 +16,6 @@ class _CameraTestState extends State<CameraTest> {
   List<String> images = ['', '', '', '', '', '', ''];
   String errText = '';
   UVCCameraController? cameraController;
-  int _counter = 1;
   @override
   void initState() {
     super.initState();
@@ -27,7 +26,7 @@ class _CameraTestState extends State<CameraTest> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('USB Camera Debug Page'),
+        title: const Text('USB Camera Debug Page'),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -35,13 +34,13 @@ class _CameraTestState extends State<CameraTest> {
           children: [
             Text(errText),
             TextButton(
-              child: Text('关闭摄像'),
+              child: const Text('关闭摄像'),
               onPressed: () {
                 cameraController?.closeCamera();
               },
             ),
             TextButton(
-              child: Text('打开摄像'),
+              child: const Text('打开摄像'),
               onPressed: () {
                 cameraController?.openUVCCamera();
               },
@@ -55,10 +54,8 @@ class _CameraTestState extends State<CameraTest> {
                       width: 300,
                       height: 300)),
             TextButton(
-              child: Text('绿光'),
-              onPressed: () {
-                _counter++;
-              },
+              child: const Text('绿光'),
+              onPressed: () {},
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -96,10 +93,8 @@ class _CameraTestState extends State<CameraTest> {
               ],
             ),
             TextButton(
-              child: Text('红光'),
-              onPressed: () {
-                _counter++;
-              },
+              child: const Text('红光'),
+              onPressed: () {},
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -137,10 +132,8 @@ class _CameraTestState extends State<CameraTest> {
               ],
             ),
             TextButton(
-              child: Text('蓝光'),
-              onPressed: () {
-                _counter++;
-              },
+              child: const Text('蓝光'),
+              onPressed: () {},
             ),
             GestureDetector(
               onTap: () => takePicture(6),
@@ -152,7 +145,7 @@ class _CameraTestState extends State<CameraTest> {
                 child: Image.file(File(images[6])),
               ),
             ),
-            SizedBox(height: 100)
+            const SizedBox(height: 100)
           ],
         ),
       ),
@@ -161,7 +154,6 @@ class _CameraTestState extends State<CameraTest> {
 
   takePicture(int i) async {
     String? path = await cameraController?.takePicture();
-    print(path);
     if (path != null) {
       images[i] = path;
       setState(() {});

@@ -1,4 +1,4 @@
-package com.sdk
+package com.chenyeju
 
 interface UVCPictureCallback {
     fun onPictureTaken(path: String)

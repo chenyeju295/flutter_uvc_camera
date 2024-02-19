@@ -1,4 +1,4 @@
-package com.sdk
+package com.chenyeju
 
 import android.content.Context
 import io.flutter.plugin.common.MethodChannel

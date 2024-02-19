@@ -11,7 +11,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.3.0'
+        classpath 'com.android.tools.build:gradle:7.4.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -29,7 +29,7 @@ apply plugin: 'kotlin-android'
 
 android {
     if (project.android.hasProperty("namespace")) {
-        namespace 'com.sdk'
+        namespace 'com.chenyeju'
     }
     viewBinding {
         enabled = true
