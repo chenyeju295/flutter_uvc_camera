@@ -1,8 +1,13 @@
+group 'com.example.flutter_uvc_camera'
+version '1.0-SNAPSHOT'
+
+
 buildscript {
     ext.kotlin_version = '1.7.10'
     repositories {
         google()
         mavenCentral()
+        maven { url "https://jitpack.io" }
     }
 
     dependencies {
@@ -19,15 +24,64 @@ allprojects {
     }
 }
 
-rootProject.buildDir = '../build'
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(':app')
-}
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
+android {
+    if (project.android.hasProperty("namespace")) {
+        namespace 'com.sdk'
+    }
+    viewBinding {
+        enabled = true
+    }
+    compileSdk 34
+
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+        main.java.srcDirs += 'src/main/kotlin'
+        test.java.srcDirs += 'src/test/kotlin'
+    }
+
+    defaultConfig {
+        minSdkVersion 19
+    }
+
+    dependencies {
+        implementation 'com.github.jasonlau233.AndroidUSBCamera:libausbc:3.4.1'
+        implementation 'com.github.jasonlau233.AndroidUSBCamera:libuvc:3.4.1'
+        implementation 'androidx.appcompat:appcompat:1.6.1'
+        implementation fileTree(dir: 'libs', include: ['*.jar'])
+        implementation 'com.android.support.constraint:constraint-layout: 5.0.0'
+
+    }
+
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+
+            testLogging {
+               events "passed", "skipped", "failed", "standardOut", "standardError"
+               outputs.upToDateWhen {false}
+               showStandardStreams = true
+            }
+        }
+    }
 }
 

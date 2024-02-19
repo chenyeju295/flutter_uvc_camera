@@ -1,0 +1,167 @@
+{
+  "abi": "X86",
+  "info": {
+    "abi": "X86",
+    "bitness": 32,
+    "deprecated": false,
+    "default": true
+  },
+  "cxxBuildFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/.cxx/Debug/682e354a/x86",
+  "soFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/build/intermediates/cxx/Debug/682e354a/obj/x86",
+  "soRepublishFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/build/intermediates/cmake/debug/obj/x86",
+  "abiPlatformVersion": 19,
+  "cmake": {
+    "effectiveConfiguration": {
+      "inheritEnvironments": [],
+      "variables": []
+    }
+  },
+  "variant": {
+    "buildSystemArgumentList": [],
+    "cFlagsList": [],
+    "cppFlagsList": [
+      ""
+    ],
+    "variantName": "debug",
+    "isDebuggableEnabled": true,
+    "validAbiList": [
+      "ARMEABI_V7A",
+      "ARM64_V8A",
+      "X86",
+      "X86_64"
+    ],
+    "buildTargetSet": [],
+    "implicitBuildTargetSet": [],
+    "cmakeSettingsConfiguration": "android-gradle-plugin-predetermined-name",
+    "module": {
+      "cxxFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/.cxx",
+      "intermediatesBaseFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/build/intermediates",
+      "intermediatesFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/build/intermediates/cxx",
+      "gradleModulePathName": ":libnative",
+      "moduleRootFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative",
+      "moduleBuildFile": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/build.gradle",
+      "makeFile": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/src/main/cpp/CMakeLists.txt",
+      "buildSystem": "CMAKE",
+      "ndkFolder": "/Users/mac/Library/Android/sdk/ndk/23.1.7779620",
+      "ndkVersion": "23.1.7779620",
+      "ndkSupportedAbiList": [
+        "ARMEABI_V7A",
+        "ARM64_V8A",
+        "X86",
+        "X86_64"
+      ],
+      "ndkDefaultAbiList": [
+        "ARMEABI_V7A",
+        "ARM64_V8A",
+        "X86",
+        "X86_64"
+      ],
+      "ndkDefaultStl": "LIBCXX_STATIC",
+      "ndkMetaPlatforms": {
+        "min": 16,
+        "max": 31,
+        "aliases": {
+          "20": 19,
+          "25": 24,
+          "J": 16,
+          "J-MR1": 17,
+          "J-MR2": 18,
+          "K": 19,
+          "L": 21,
+          "L-MR1": 22,
+          "M": 23,
+          "N": 24,
+          "N-MR1": 24,
+          "O": 26,
+          "O-MR1": 27,
+          "P": 28,
+          "Q": 29,
+          "R": 30,
+          "S": 31
+        }
+      },
+      "ndkMetaAbiList": [
+        {
+          "abi": "ARMEABI_V7A",
+          "bitness": 32,
+          "deprecated": false,
+          "default": true
+        },
+        {
+          "abi": "ARM64_V8A",
+          "bitness": 64,
+          "deprecated": false,
+          "default": true
+        },
+        {
+          "abi": "X86",
+          "bitness": 32,
+          "deprecated": false,
+          "default": true
+        },
+        {
+          "abi": "X86_64",
+          "bitness": 64,
+          "deprecated": false,
+          "default": true
+        }
+      ],
+      "cmakeToolchainFile": "/Users/mac/Library/Android/sdk/ndk/23.1.7779620/build/cmake/android.toolchain.cmake",
+      "cmake": {
+        "isValidCmakeAvailable": true,
+        "cmakeExe": "/Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/cmake",
+        "minimumCmakeVersion": "3.10.2"
+      },
+      "stlSharedObjectMap": {
+        "LIBCXX_SHARED": {
+          "ARMEABI_V7A": "/Users/mac/Library/Android/sdk/ndk/23.1.7779620/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/arm-linux-androideabi/libc++_shared.so",
+          "ARM64_V8A": "/Users/mac/Library/Android/sdk/ndk/23.1.7779620/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so",
+          "X86": "/Users/mac/Library/Android/sdk/ndk/23.1.7779620/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/i686-linux-android/libc++_shared.so",
+          "X86_64": "/Users/mac/Library/Android/sdk/ndk/23.1.7779620/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/x86_64-linux-android/libc++_shared.so"
+        },
+        "LIBCXX_STATIC": {},
+        "NONE": {},
+        "SYSTEM": {}
+      },
+      "project": {
+        "rootBuildGradleFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android",
+        "sdkFolder": "/Users/mac/Library/Android/sdk",
+        "isBuildOnlyTargetAbiEnabled": true,
+        "isCmakeBuildCohabitationEnabled": false,
+        "isPrefabEnabled": false
+      },
+      "outputOptions": [],
+      "ninjaExe": "/Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja"
+    },
+    "prefabClassPaths": [],
+    "prefabPackages": [],
+    "prefabPackageConfigurations": [],
+    "stlType": "c++_static",
+    "optimizationTag": "Debug"
+  },
+  "buildSettings": {
+    "environmentVariables": []
+  },
+  "prefabFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/.cxx/Debug/682e354a/prefab/x86",
+  "isActiveAbi": true,
+  "fullConfigurationHash": "682e354a5c3o4o643684531505o3o3l5jf5h6q3m1co606u6n605b1f301t4a",
+  "configurationArguments": [
+    "-H/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/src/main/cpp",
+    "-DCMAKE_SYSTEM_NAME\u003dAndroid",
+    "-DCMAKE_EXPORT_COMPILE_COMMANDS\u003dON",
+    "-DCMAKE_SYSTEM_VERSION\u003d19",
+    "-DANDROID_PLATFORM\u003dandroid-19",
+    "-DANDROID_ABI\u003dx86",
+    "-DCMAKE_ANDROID_ARCH_ABI\u003dx86",
+    "-DANDROID_NDK\u003d/Users/mac/Library/Android/sdk/ndk/23.1.7779620",
+    "-DCMAKE_ANDROID_NDK\u003d/Users/mac/Library/Android/sdk/ndk/23.1.7779620",
+    "-DCMAKE_TOOLCHAIN_FILE\u003d/Users/mac/Library/Android/sdk/ndk/23.1.7779620/build/cmake/android.toolchain.cmake",
+    "-DCMAKE_MAKE_PROGRAM\u003d/Users/mac/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja",
+    "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY\u003d/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/build/intermediates/cxx/Debug/682e354a/obj/x86",
+    "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY\u003d/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/build/intermediates/cxx/Debug/682e354a/obj/x86",
+    "-DCMAKE_BUILD_TYPE\u003dDebug",
+    "-B/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/.cxx/Debug/682e354a/x86",
+    "-GNinja"
+  ],
+  "intermediatesParentFolder": "/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/build/intermediates/cxx/Debug/682e354a"
+}

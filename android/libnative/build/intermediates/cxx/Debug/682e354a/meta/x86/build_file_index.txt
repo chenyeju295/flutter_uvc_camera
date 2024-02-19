@@ -1,0 +1,1 @@
+/Users/mac/Documents/coding/app_pro/flutter_uvc_camera/android/libnative/src/main/cpp/CMakeLists.txt

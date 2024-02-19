@@ -1,20 +1,37 @@
 # flutter_uvc_camera
-<<<<<<< HEAD
-flutter_uvc_camera 
-=======
 
-flutter_uvc_camera
+A new Flutter plugin project.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+1、MainActivity调整
+FlutterActivity=>FlutterFragmentActivity
 
-A few resources to get you started if this is your first Flutter project:
+2、原生工程manifest中添加权限：
+<uses-permission android:name="android.permission.USB_PERMISSION" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-feature android:name="android.hardware.usb.host" />
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
+<uses-permission android:name="android.permission.CAMERA"/>
+<uses-permission android:name="android.permission.RECORD_AUDIO"/>
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+                 android:maxSdkVersion="34"
+                 tools:ignore="ScopedStorage"/>
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="34"/>
+<uses-feature android:name="android.hardware.camera"/>
+<uses-feature android:name="android.hardware.camera.autofocus"/>
+<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+<uses-permission android:name="android.permission.WRITE_MEDIA_IMAGES"/>
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
->>>>>>> ccae7f2 (提交说明)
+3、manifest中的.mainActivity中添加如下内容
+<intent-filter>
+<action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+<category android:name="android.intent.category.DEFAULT" />
+</intent-filter>
+<meta-data
+android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+android:resource="@xml/device_filter" />
+
