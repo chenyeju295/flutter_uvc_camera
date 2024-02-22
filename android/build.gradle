@@ -60,8 +60,8 @@ android {
     }
 
     dependencies {
-        implementation 'com.github.chenyeju295.AndroidUSBCamera:libausbc:3.3.4'
-        implementation 'com.github.chenyeju295.AndroidUSBCamera:libuvc:3.3.4'
+        implementation 'com.github.chenyeju295.AndroidUSBCamera:libausbc:3.3.6'
+        implementation 'com.github.chenyeju295.AndroidUSBCamera:libuvc:3.3.6'
         implementation 'androidx.appcompat:appcompat:1.6.1'
         implementation fileTree(dir: 'libs', include: ['*.jar'])
         implementation 'com.android.support.constraint:constraint-layout: 5.0.0'
