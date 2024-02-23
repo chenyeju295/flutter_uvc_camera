@@ -1,7 +1,7 @@
 # flutter_uvc_camera
 
-A new Flutter plugin project.
-
+基于AndroidUSBCamera改写的flutter android版本，让安卓系统可用上外接摄像头。
+ 
 ## Getting Started
 
 1、MainActivity调整
