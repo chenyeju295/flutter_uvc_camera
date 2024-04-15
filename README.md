@@ -62,13 +62,28 @@ dependencies:
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_uvc_camera/flutter_uvc_camera.dart';
+import 'package:flutter_uvc_camera/uvc_camera_controller.dart';
+import 'package:flutter_uvc_camera/uvc_camera_view.dart';
 
-void main() {
-  runApp(MyApp());
+class CameraTest extends StatefulWidget {
+  const CameraTest({super.key});
+
+  @override
+  State<CameraTest> createState() => _CameraTestState();
 }
 
-class MyApp extends StatelessWidget {
+class _CameraTestState extends State<CameraTest> {
+  UVCCameraController? cameraController;
+  
+  @override
+  void initState() {
+    super.initState();
+    cameraController = UVCCameraController();
+    cameraController?.msgCallback = (state) {
+      showCustomToast(state);
+    };
+  }
+  
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -77,7 +92,12 @@ class MyApp extends StatelessWidget {
           title: Text('UVC Camera Example'),
         ),
         body: Center(
-          child: FlutterUvcCamera(),
+          child: UVCCameraView(
+              cameraController: cameraController!,
+              params: const UVCCameraViewParamsEntity(
+                  aspectRatio: 1, productIds: [521115, 77777], vendorIds: [52111, 88888]),
+              width: 300,
+              height: 300),
         ),
       ),
     );
