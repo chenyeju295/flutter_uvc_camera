@@ -6,10 +6,15 @@ class UVCCameraViewParamsEntity {
   final double? aspectRatio;
   final List<int>? productIds; // usb产品ID 用于过滤识别设备
   final List<int>? vendorIds; // usb厂商ID 用于过滤识别设备
-  const UVCCameraViewParamsEntity({this.aspectRatio, this.productIds, this.vendorIds});
+  const UVCCameraViewParamsEntity(
+      {this.aspectRatio, this.productIds, this.vendorIds});
 
   Map<String, dynamic> toMap() {
-    return {"aspectRatio": aspectRatio, "productIds": productIds, "vendorIds": vendorIds};
+    return {
+      "aspectRatio": aspectRatio,
+      "productIds": productIds,
+      "vendorIds": vendorIds
+    };
   }
 }
 
@@ -19,7 +24,11 @@ class UVCCameraView extends StatefulWidget {
   final double height;
   final UVCCameraViewParamsEntity? params;
   const UVCCameraView(
-      {super.key, required this.cameraController, required this.width, required this.height, this.params});
+      {super.key,
+      required this.cameraController,
+      required this.width,
+      required this.height,
+      this.params});
 
   @override
   State<UVCCameraView> createState() => _UVCCameraViewState();

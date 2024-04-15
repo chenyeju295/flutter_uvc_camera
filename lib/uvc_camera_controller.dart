@@ -5,8 +5,13 @@ enum UVCCameraState { opened, closed, error }
 
 class UVCCameraController {
   static const String _channelName = "flutter_uvc_camera/channel";
+
   UVCCameraState _cameraState = UVCCameraState.closed;
+
+  /// 摄像头状态回调
   Function(UVCCameraState)? cameraStateCallback;
+
+  /// 拍照按钮回调
   Function(String)? clickTakePictureButtonCallback;
   UVCCameraState get getCameraState => _cameraState;
   String _cameraErrorMsg = '';
@@ -19,6 +24,7 @@ class UVCCameraController {
 
   MethodChannel? _cameraChannel;
 
+  ///初始化
   UVCCameraController() {
     _cameraChannel = const MethodChannel(_channelName);
     _cameraChannel?.setMethodCallHandler(_methodChannelHandler);

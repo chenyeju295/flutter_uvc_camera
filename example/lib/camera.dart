@@ -62,7 +62,9 @@ class _CameraTestState extends State<CameraTest> {
                   child: UVCCameraView(
                       cameraController: cameraController!,
                       params: const UVCCameraViewParamsEntity(
-                          aspectRatio: 1, productIds: [521115, 77777], vendorIds: [52111, 88888]),
+                          aspectRatio: 1,
+                          productIds: [521115, 77777],
+                          vendorIds: [52111, 88888]),
                       width: 300,
                       height: 300)),
             TextButton(

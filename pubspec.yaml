@@ -1,5 +1,5 @@
 name: flutter_uvc_camera
-description: flutter android uvc camera plugin.
+description: The Flutter Android UVC Camera Plugin offers an easy-to-integrate solution, allowing your Flutter app to seamlessly utilize external UVC cameras on Android devices, expanding users' capabilities for capturing and recording experiences.
 version: 0.0.1
 homepage: https://github.com/chenyeju295/flutter_uvc_camera
 

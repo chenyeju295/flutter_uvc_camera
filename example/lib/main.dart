@@ -39,7 +39,10 @@ class _MyAppState extends State<MyApp> {
               const SizedBox(height: 40),
               TextButton(
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const CameraTest()));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const CameraTest()));
                     setState(() {});
                   },
                   child: const Text('摄像头页面')),
