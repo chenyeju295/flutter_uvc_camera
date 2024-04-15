@@ -16,7 +16,6 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final cameraController = UVCCameraController();
-  String? _picturePath;
 
   @override
   void initState() {
@@ -44,16 +43,6 @@ class _MyAppState extends State<MyApp> {
                     setState(() {});
                   },
                   child: const Text('摄像头页面')),
-              const SizedBox(height: 20),
-              const SizedBox(height: 20),
-              if (_picturePath != null)
-                Text(
-                  _picturePath!,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              const SizedBox(height: 20),
-              const SizedBox(height: 20),
-              ...cameraController.getCallStrings.map((e) => Text(e)),
               const SizedBox(height: 20),
             ],
           ),

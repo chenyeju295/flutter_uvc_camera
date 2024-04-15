@@ -20,6 +20,18 @@ class _CameraTestState extends State<CameraTest> {
   void initState() {
     super.initState();
     cameraController = UVCCameraController();
+    cameraController?.msgCallback = (state) {
+      showCustomToast(state);
+    };
+  }
+
+  void showCustomToast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 1), // 设置持续时间
+      ),
+    );
   }
 
   @override
@@ -50,11 +62,11 @@ class _CameraTestState extends State<CameraTest> {
                   child: UVCCameraView(
                       cameraController: cameraController!,
                       params: const UVCCameraViewParamsEntity(
-                          aspectRatio: 1, productIds: [52225, 77777], vendorIds: [52281]),
+                          aspectRatio: 1, productIds: [521115, 77777], vendorIds: [52111, 88888]),
                       width: 300,
                       height: 300)),
             TextButton(
-              child: const Text('绿光'),
+              child: const Text('点击拍照----------------'),
               onPressed: () {},
             ),
             Row(
@@ -93,7 +105,7 @@ class _CameraTestState extends State<CameraTest> {
               ],
             ),
             TextButton(
-              child: const Text('红光'),
+              child: const Text('点击拍照-------------'),
               onPressed: () {},
             ),
             Row(
@@ -132,7 +144,7 @@ class _CameraTestState extends State<CameraTest> {
               ],
             ),
             TextButton(
-              child: const Text('蓝光'),
+              child: const Text('点击拍照------------------'),
               onPressed: () {},
             ),
             GestureDetector(

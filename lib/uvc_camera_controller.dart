@@ -16,10 +16,6 @@ class UVCCameraController {
   final List<String> _callStrings = [];
   List<String> get getCallStrings => _callStrings;
   Function(String)? msgCallback;
-  final List<dynamic> _devicesList = [];
-  List<dynamic> get devicesList => _devicesList;
-  final List<dynamic> _allPreviewSize = [];
-  List<dynamic> get allPreviewSize => _allPreviewSize;
 
   MethodChannel? _cameraChannel;
 
@@ -41,7 +37,7 @@ class UVCCameraController {
       case "callFlutter":
         debugPrint('------> 收到来自Android的消息：${call.arguments}');
         _callStrings.add(call.arguments.toString());
-        msgCallback?.call(call.arguments.toString());
+        msgCallback?.call(call.arguments['msg']);
 
         break;
       case "takePictureSuccess":
@@ -50,11 +46,6 @@ class UVCCameraController {
       case "CameraState":
         _setCameraState(call.arguments.toString());
         break;
-      case "getDevicesList":
-        _devicesList.addAll(call.arguments);
-        break;
-      case "getAllPreviewSize":
-        _allPreviewSize.addAll(call.arguments);
     }
   }
 
@@ -100,6 +91,7 @@ class UVCCameraController {
           _cameraState = UVCCameraState.error;
           _cameraErrorMsg = state;
           cameraStateCallback?.call(UVCCameraState.error);
+          msgCallback?.call(state);
         }
         break;
     }

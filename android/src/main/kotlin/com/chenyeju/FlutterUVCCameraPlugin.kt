@@ -9,7 +9,6 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 
-
 class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     private val channelName = "flutter_uvc_camera/channel"
     private val viewName = "uvc_camera_view"
