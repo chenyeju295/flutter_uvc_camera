@@ -10,8 +10,7 @@
 
 ```yaml
 dependencies:
-  flutter_uvc_camera: 
-      path: '本地下载路径'
+  flutter_uvc_camera: ^0.0.1
 ```
 
 然后运行 `flutter pub get` 命令来安装插件。

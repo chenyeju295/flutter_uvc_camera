@@ -1,6 +1,7 @@
 name: flutter_uvc_camera
-description: A new Flutter plugin project.
+description: flutter android uvc camera plugin.
 version: 0.0.1
+homepage: https://github.com/chenyeju295/flutter_uvc_camera
 
 environment:
   sdk: '>=3.1.0 <4.0.0'
