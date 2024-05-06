@@ -34,12 +34,12 @@ Add the following permissions to the AndroidManifest.xml file of your Android pr
     <!-- Add other necessary permissions here -->
 ```
 
-#### Add maven { url "https://jitpack.io" } in android/build.gradle:
+#### Add `maven { url "https://jitpack.io" }` in android/build.gradle:
 
 ```gradle
 allprojects {
     repositories {
-        ///其他仓库
+        /// other repositories
         maven { url "https://jitpack.io" }
     }
 }
@@ -113,13 +113,13 @@ class _CameraTestState extends State<CameraTest> {
 
 ## Notes
 - Ensure that the required permissions are configured before using the plugin, otherwise the plugin may not function 
-properly.
+  properly.
 - The plugin currently supports using external cameras in Flutter projects but may have some limitations and 
   compatibility issues. Please test and adjust the plugin according to your needs.
 
 ## Issue Reporting
-If you encounter any problems or have any suggestions during usage, please report them on [GitHub Issues]
-(https://github.com/chenyeju295/flutter_uvc_camera/issues) .
+If you encounter any problems or have any suggestions during usage, please report them on
+[GitHub Issues](https://github.com/chenyeju295/flutter_uvc_camera/issues) .
 
 
 
