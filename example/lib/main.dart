@@ -15,41 +15,17 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final cameraController = UVCCameraController();
-
-  @override
-  void initState() {
-    super.initState();
-    _incrementCounter();
-  }
-
-  void _incrementCounter() {
-    setState(() {});
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('uvc设备测试')),
       body: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              const SizedBox(height: 40),
-              TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const CameraTest()));
-                    setState(() {});
-                  },
-                  child: const Text('摄像头页面')),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
+        child: TextButton(
+            onPressed: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => const CameraTest()));
+            },
+            child: const Text('camera test')),
       ),
     );
   }

@@ -41,7 +41,7 @@ class UVCCameraController {
   Future<void> _methodChannelHandler(MethodCall call) async {
     switch (call.method) {
       case "callFlutter":
-        debugPrint('------> 收到来自Android的消息：${call.arguments}');
+        debugPrint('------> Received from Android：${call.arguments}');
         _callStrings.add(call.arguments.toString());
         msgCallback?.call(call.arguments['msg']);
 
@@ -77,7 +77,7 @@ class UVCCameraController {
 
   Future<String?> takePicture() async {
     String? path = await _cameraChannel?.invokeMethod('takePicture');
-    debugPrint("拍照$path");
+    debugPrint("path: $path");
     return path;
   }
 
@@ -108,7 +108,6 @@ class UVCCameraController {
       _takePicturePath = result;
       clickTakePictureButtonCallback?.call(result);
     }
-    debugPrint("拍照$result");
   }
 
   void closeCamera() {

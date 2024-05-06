@@ -2,10 +2,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_uvc_camera/uvc_camera_controller.dart';
 
+/// 自定义参数 可空  Custom parameters can be empty
 class UVCCameraViewParamsEntity {
   final double? aspectRatio;
-  final List<int>? productIds; // usb产品ID 用于过滤识别设备
-  final List<int>? vendorIds; // usb厂商ID 用于过滤识别设备
+
+  /// usb产品ID 用于过滤识别设备 USB product ID used to filter device recognition
+  final List<int>? productIds;
+
+  /// usb厂商ID 用于过滤识别设备 USB vendor ID used to filter device recognition
+  final List<int>? vendorIds;
   const UVCCameraViewParamsEntity(
       {this.aspectRatio, this.productIds, this.vendorIds});
 
@@ -53,7 +58,6 @@ class _UVCCameraViewState extends State<UVCCameraView> {
           creationParamsCodec: const StandardMessageCodec(),
           onPlatformViewCreated: (id) {
             widget.cameraController.initializeCamera();
-            debugPrint("onPlatformViewCreated");
           }),
     );
   }

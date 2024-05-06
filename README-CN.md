@@ -1,26 +1,30 @@
 # flutter_uvc_camera
 
-A Flutter plugin based on [AndroidUSBCamera](https://github.com/jiangdongguo/AndroidUSBCamera) to enable Flutter apps to use external cameras.
+一个基于 [AndroidUSBCamera](https://github.com/jiangdongguo/AndroidUSBCamera) 改写的 Flutter 插件，让 Flutter 项目中的 App 可以使用外接摄像头。
 
-pub.dev link：[https://pub.dev/packages/flutter_uvc_camera](https://pub.dev/packages/flutter_uvc_camera)
+pub.dev 地址：[https://pub.dev/packages/flutter_uvc_camera](https://pub.dev/packages/flutter_uvc_camera)
 
-## Getting Started
+## 开始使用
 
-### 1. Add Dependency
+### 1. 添加依赖
 
-Add the `flutter_uvc_camera` plugin dependency to your Flutter project's `pubspec.yaml` file:
+在你的 Flutter 项目的 `pubspec.yaml` 文件中添加 `flutter_uvc_camera` 插件依赖：
 
 ```yaml
 dependencies:
-  flutter_uvc_camera: last_version
+  flutter_uvc_camera: ^0.0.1
 ```
 
+然后运行 `flutter pub get` 命令来安装插件。
 
-### 2. Configure Android Project
-Before using this plugin, some configurations are needed for the Android project.
+### 2. 配置 Android 项目
 
-### Add Permissions
-Add the following permissions to the AndroidManifest.xml file of your Android project:
+在使用本插件之前，需要对 Android 项目进行一些配置。
+
+#### 添加权限
+
+在 Android 项目的 `AndroidManifest.xml` 文件中添加以下权限：
+
 ```xml
    <uses-permission android:name="android.permission.USB_PERMISSION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -31,10 +35,11 @@ Add the following permissions to the AndroidManifest.xml file of your Android pr
     <uses-feature android:name="android.hardware.usb.host" />
     <uses-feature android:name="android.hardware.camera"/>
     <uses-feature android:name="android.hardware.camera.autofocus"/>
-    <!-- Add other necessary permissions here -->
+    <!-- 在这里添加其他所需的权限 -->
 ```
 
-#### Add maven { url "https://jitpack.io" } in android/build.gradle:
+
+#### 在 `android/build.gradle` 中添加`maven { url "https://jitpack.io" }`：
 
 ```gradle
 allprojects {
@@ -45,9 +50,9 @@ allprojects {
 }
 ```
 
-#### Add Intent Filter and Meta-data for Device Insertion Detection, Plug-in Monitoring, and Recognition of Opening Applications
+#### 添加 Intent Filter 和 Meta-data 用于插入设备识别，拔插监听和识别打开应用
 
-Add an action for USB device connection in the intent-filter of mainActivity, and reference the corresponding XML file in meta-data:
+在 `mainActivity` 的 intent-filter 中添加 USB 设备连接的 action，并在 meta-data 中引用相应的 XML 文件：
 
 ```xml
 <intent-filter>
@@ -66,7 +71,7 @@ Add an action for USB device connection in the intent-filter of mainActivity, an
     </usb>
 ```
 
-### 3. Usage Example
+### 3. 使用示例
 
 ```dart
 import 'package:flutter/material.dart';
@@ -111,15 +116,14 @@ class _CameraTestState extends State<CameraTest> {
 }
 ```
 
-## Notes
-- Ensure that the required permissions are configured before using the plugin, otherwise the plugin may not function 
-properly.
-- The plugin currently supports using external cameras in Flutter projects but may have some limitations and 
-  compatibility issues. Please test and adjust the plugin according to your needs.
+## 注意事项
 
-## Issue Reporting
-If you encounter any problems or have any suggestions during usage, please report them on [GitHub Issues]
-(https://github.com/chenyeju295/flutter_uvc_camera/issues) .
+- 请确保在使用插件前已经配置了所需的权限，否则插件可能无法正常工作。
+- 插件目前支持在 Flutter 项目中使用外接摄像头，但可能存在一些限制和兼容性问题。请根据实际情况对插件进行测试和调整。
+
+## 问题反馈
+
+如果在使用过程中遇到任何问题或有任何建议，请在 [GitHub Issues](https://github.com/chenyeju295/flutter_uvc_camera/issues) 中反馈。
 
 
 
