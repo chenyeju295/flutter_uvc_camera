@@ -44,10 +44,18 @@ import java.util.concurrent.TimeUnit
  *
  * @author Created by jiangdg on 2023/1/15
  */
-class CameraUVC(ctx: Context, device: UsbDevice) : MultiCameraClient.ICamera(ctx, device) {
+class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
+    ) : MultiCameraClient.ICamera(ctx, device) {
     private var mUvcCamera: UVCCamera? = null
     private val mCameraPreviewSize by lazy {
         arrayListOf<PreviewSize>()
+    }
+    companion object {
+        private const val TAG = "CameraUVC"
+        private const val MIN_FS = 10
+        private const val MAX_FPS = 60
+        private const val frameFormat = UVCCamera.FRAME_FORMAT_MJPEG
+        private const val bandwidthFactor = UVCCamera.DEFAULT_BANDWIDTH
     }
 
     private val frameCallBack = IFrameCallback { frame ->
@@ -151,8 +159,8 @@ class CameraUVC(ctx: Context, device: UsbDevice) : MultiCameraClient.ICamera(ctx
                 previewSize.height,
                 MIN_FS,
                 MAX_FPS,
-                UVCCamera.FRAME_FORMAT_MJPEG,
-                UVCCamera.DEFAULT_BANDWIDTH
+                frameFormat,
+                bandwidthFactor
             )
         } catch (e: Exception) {
             try {
@@ -255,7 +263,7 @@ class CameraUVC(ctx: Context, device: UsbDevice) : MultiCameraClient.ICamera(ctx
                 callback.onBegin()
             }
             val date = mDateFormat.format(System.currentTimeMillis())
-            val title = savePath ?: "IMG_AUSBC_$date"
+            val title = savePath ?: "IMG_UVC_$date"
             val displayName = savePath ?: "$title.jpg"
             val path = savePath ?: "$mCameraDir/$displayName"
             val location = Utils.getGpsLocation(ctx)
@@ -522,9 +530,4 @@ class CameraUVC(ctx: Context, device: UsbDevice) : MultiCameraClient.ICamera(ctx
         mUvcCamera?.resetHue()
     }
 
-    companion object {
-        private const val TAG = "CameraUVC"
-        private const val MIN_FS = 10
-        private const val MAX_FPS = 60
-    }
 }

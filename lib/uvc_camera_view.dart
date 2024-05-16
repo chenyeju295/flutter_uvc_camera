@@ -6,19 +6,11 @@ import 'package:flutter_uvc_camera/uvc_camera_controller.dart';
 class UVCCameraViewParamsEntity {
   final double? aspectRatio;
 
-  /// usb产品ID 用于过滤识别设备 USB product ID used to filter device recognition
-  final List<int>? productIds;
-
-  /// usb厂商ID 用于过滤识别设备 USB vendor ID used to filter device recognition
-  final List<int>? vendorIds;
-  const UVCCameraViewParamsEntity(
-      {this.aspectRatio, this.productIds, this.vendorIds});
+  const UVCCameraViewParamsEntity({this.aspectRatio});
 
   Map<String, dynamic> toMap() {
     return {
       "aspectRatio": aspectRatio,
-      "productIds": productIds,
-      "vendorIds": vendorIds
     };
   }
 }
@@ -29,11 +21,7 @@ class UVCCameraView extends StatefulWidget {
   final double height;
   final UVCCameraViewParamsEntity? params;
   const UVCCameraView(
-      {super.key,
-      required this.cameraController,
-      required this.width,
-      required this.height,
-      this.params});
+      {super.key, required this.cameraController, required this.width, required this.height, this.params});
 
   @override
   State<UVCCameraView> createState() => _UVCCameraViewState();

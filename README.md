@@ -2,7 +2,12 @@
 
 A Flutter plugin based on [AndroidUSBCamera](https://github.com/jiangdongguo/AndroidUSBCamera) to enable Flutter apps to use external cameras.
 
-pub.dev link：[https://pub.dev/packages/flutter_uvc_camera](https://pub.dev/packages/flutter_uvc_camera)
+pub：[flutter_uvc_camera](https://pub.dev/packages/flutter_uvc_camera)
+
+## Preface 
+- Only supports Android
+- Android 10 need to reduce targetSdkVersion to 27
+- Discovering problematic models：Redmi Note 10 
 
 ## Getting Started
 
@@ -47,12 +52,13 @@ allprojects {
 
 #### Add Intent Filter and Meta-data for Device Insertion Detection, Plug-in Monitoring, and Recognition of Opening Applications
 
+Android documents [USB host overview](https://developer.android.google.cn/develop/connectivity/usb/host?hl=en)
+
 Add an action for USB device connection in the intent-filter of mainActivity, and reference the corresponding XML file in meta-data:
 
 ```xml
 <intent-filter>
     <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
-    <category android:name="android.intent.category.DEFAULT" />
 </intent-filter>
 <meta-data
     android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
@@ -61,9 +67,10 @@ Add an action for USB device connection in the intent-filter of mainActivity, an
 
 ```device_filter.xml
 <?xml version="1.0" encoding="utf-8"?>
-    <usb>
-        <usb-device vendor-id="11111" product-id="22222" />
-    </usb>
+
+<resources>
+    <usb-device vendor-id="1234" product-id="5678" class="255" subclass="66" protocol="1" />
+</resources>
 ```
 
 ### 3. Usage Example

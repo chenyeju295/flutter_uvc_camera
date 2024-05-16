@@ -58,19 +58,12 @@ internal class UVCCameraView(
     private val mRequestPermission: AtomicBoolean by lazy {
         AtomicBoolean(false)
     }
-    private var validProductIds = intArrayOf(52225)
-    private var validVendorIds = intArrayOf(52281)
+
 
     companion object {
         private const val TAG = "CameraView"
     }
 
-    private val mCameraDir by lazy {
-        "${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)}"
-    }
-    private val mDateFormat by lazy {
-        SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.getDefault())
-    }
     init{
         processingParams()
     }
@@ -78,18 +71,7 @@ internal class UVCCameraView(
     private fun processingParams() {
         if (params is Map<*, *>) {
             mAspectRatio = (params["aspectRatio"] as? Number)?.toDouble()
-            val productIds = params["productIds"] as? List<*>
-            val vendorIds = params["vendorIds"] as? List<*>
-            productIds?.forEach { id ->
-                if(id is Int){
-                    validProductIds = validProductIds.plus(id)
-                }
-            }
-            vendorIds?.forEach { id ->
-                if(id is Int){
-                    validVendorIds = validVendorIds.plus(id)
-                }
-            }
+
         }}
 
     override fun getView(): View {
@@ -371,7 +353,7 @@ internal class UVCCameraView(
 
 
     fun generateCamera(ctx: Context, device: UsbDevice): MultiCameraClient.ICamera {
-        return CameraUVC(ctx, device)
+        return CameraUVC(ctx, device,params)
     }
 
     fun getDefaultCamera(): UsbDevice? = null
