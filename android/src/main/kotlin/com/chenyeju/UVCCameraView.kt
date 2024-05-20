@@ -99,9 +99,7 @@ internal class UVCCameraView(
 
     fun openUVCCamera() {
         checkCameraPermission()
-         if(!isCameraOpened()){
-             setCameraERRORState(msg = "未检测到设备")
-         }
+        openCamera()
     }
 
     override fun dispose() {

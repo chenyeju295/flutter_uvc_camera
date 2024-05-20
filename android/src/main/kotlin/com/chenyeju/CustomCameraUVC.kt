@@ -52,10 +52,6 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
     }
     companion object {
         private const val TAG = "CameraUVC"
-        private const val MIN_FS = 10
-        private const val MAX_FPS = 60
-        private const val frameFormat = UVCCamera.FRAME_FORMAT_MJPEG
-        private const val bandwidthFactor = UVCCamera.DEFAULT_BANDWIDTH
     }
 
     private val frameCallBack = IFrameCallback { frame ->
@@ -143,6 +139,17 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
             mCameraRequest!!.previewWidth = width
             mCameraRequest!!.previewHeight = height
         }
+         var minFps = 10
+         var maxFps = 60
+         var frameFormat = UVCCamera.FRAME_FORMAT_MJPEG
+         var bandwidthFactor = UVCCamera.DEFAULT_BANDWIDTH
+
+         if (params is Map<*, *>) {
+            minFps = (params["minFps"] as? Number)?.toInt() ?: minFps
+            maxFps = (params["maxFps"] as? Number)?.toInt() ?: maxFps
+            frameFormat = (params["frameFormat"] as? Number)?.toInt() ?: frameFormat
+            bandwidthFactor = (params["bandwidthFactor"] as? Number)?.toFloat() ?: bandwidthFactor
+         }
         try {
             Logger.i(TAG, "getSuitableSize: $previewSize")
             if (! isPreviewSizeSupported(previewSize)) {
@@ -157,8 +164,8 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
             mUvcCamera?.setPreviewSize(
                 previewSize.width,
                 previewSize.height,
-                MIN_FS,
-                MAX_FPS,
+                minFps,
+                maxFps,
                 frameFormat,
                 bandwidthFactor
             )
@@ -178,8 +185,8 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
                 mUvcCamera?.setPreviewSize(
                     previewSize.width,
                     previewSize.height,
-                    MIN_FS,
-                    MAX_FPS,
+                    minFps,
+                    maxFps,
                     UVCCamera.FRAME_FORMAT_YUYV,
                     UVCCamera.DEFAULT_BANDWIDTH
                 )
