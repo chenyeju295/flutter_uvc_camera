@@ -10,7 +10,6 @@ import android.content.pm.PackageManager
 import android.graphics.SurfaceTexture
 import android.hardware.usb.UsbDevice
 import android.media.MediaScannerConnection
-import android.os.Environment
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.SurfaceView
@@ -23,6 +22,7 @@ import android.widget.RelativeLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
 import com.chenyeju.databinding.ActivityMainBinding
+import com.google.gson.Gson
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
 import com.jiangdg.ausbc.callback.ICaptureCallBack
@@ -37,11 +37,8 @@ import com.jiangdg.usb.USBMonitor
 import com.jiangdg.uvc.IButtonCallback
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
-import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-
 
 internal class UVCCameraView(
     private val mContext: Context,
@@ -54,7 +51,6 @@ internal class UVCCameraView(
     private var mCameraClient: MultiCameraClient? = null
     private val mCameraMap = hashMapOf<Int, MultiCameraClient.ICamera>()
     private var mCurrentCamera: SettableFuture<MultiCameraClient.ICamera>? = null
-    private var mAspectRatio: Double? = null
     private val mRequestPermission: AtomicBoolean by lazy {
         AtomicBoolean(false)
     }
@@ -64,15 +60,15 @@ internal class UVCCameraView(
         private const val TAG = "CameraView"
     }
 
-    init{
-        processingParams()
-    }
-
-    private fun processingParams() {
-        if (params is Map<*, *>) {
-            mAspectRatio = (params["aspectRatio"] as? Number)?.toDouble()
-
-        }}
+//    init{
+//        processingParams()
+//    }
+//
+//    private fun processingParams() {
+//        if (params is Map<*, *>) {
+//
+//        }
+//    }
 
     override fun getView(): View {
         return mViewBinding.root
@@ -307,8 +303,30 @@ internal class UVCCameraView(
     }
 
 
+     fun getAllPreviewSizes() : String? {
+         val previewSizes = getCurrentCamera()?.getAllPreviewSizes()
+         if (previewSizes.isNullOrEmpty()) {
+             callFlutter("Get camera preview size failed")
+             return null
+         }
+         return Gson().toJson(previewSizes)
+     }
 
+    fun updateResolution(arguments: Any?) {
+        val map = arguments as HashMap<*, *>
+        val width = map["width"] as Int
+        val height = map["height"] as Int
+        getCurrentCamera()?.updateResolution(width, height)
+    }
 
+   fun getCurrentCameraRequestParameters(): String? {
+      val size = getCurrentCamera()?.getCameraRequest()
+       if (size == null) {
+           callFlutter("Get camera info failed")
+           return null
+       }
+       return Gson().toJson(size)
+    }
 
 
     private fun getActivityFromContext(context: Context?): Activity? {
@@ -438,12 +456,9 @@ internal class UVCCameraView(
 
 
     private fun getCameraRequest(): CameraRequest {
-        val height  = 640.0
-        var width = 480.0
-        if (mAspectRatio != null) { width = height * mAspectRatio!! }
         return CameraRequest.Builder()
-            .setPreviewWidth(height.toInt())
-            .setPreviewHeight(width.toInt())
+            .setPreviewWidth(640)
+            .setPreviewHeight(480)
             .setRenderMode(CameraRequest.RenderMode.OPENGL)
             .setDefaultRotateType(RotateType.ANGLE_0)
             .setAudioSource(CameraRequest.AudioSource.SOURCE_SYS_MIC)

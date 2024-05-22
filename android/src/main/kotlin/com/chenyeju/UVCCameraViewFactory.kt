@@ -29,12 +29,15 @@ class UVCCameraViewFactory(private val plugin: FlutterUVCCameraPlugin,private va
         cameraView.takePicture(callback)
     }
 
-//   fun resetCamera(){
-//        cameraView.resetCamera()
-//    }
+    fun getAllPreviewSizes() = cameraView.getAllPreviewSizes();
+    fun getCurrentCameraRequestParameters() = cameraView.getCurrentCameraRequestParameters();
 
     fun closeCamera() {
         cameraView.closeCamera()
+    }
+
+    fun updateResolution(arguments: Any?) {
+        cameraView.updateResolution(arguments)
     }
 
 

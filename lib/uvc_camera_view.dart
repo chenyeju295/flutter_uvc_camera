@@ -4,9 +4,6 @@ import 'package:flutter_uvc_camera/uvc_camera_controller.dart';
 
 /// 自定义参数 可空  Custom parameters can be empty
 class UVCCameraViewParamsEntity {
-  /// camera preview aspect ratio
-  final double? aspectRatio;
-
   /**
    *  if give custom minFps or maxFps or unsupported preview size
    *  set preview possible will fail
@@ -17,15 +14,14 @@ class UVCCameraViewParamsEntity {
   /// camera preview max fps  60
   final int? maxFps;
 
-  /// camera preview frame format 0 (MJPEG) or 1 (YUV)
-  /// DEFAULT 0(MJPEG)  If preview fails and the screen goes black, please try switching to 1
+  /// camera preview frame format 1 (MJPEG) or 0 (YUV)
+  /// DEFAULT 1(MJPEG)  If preview fails and the screen goes black, please try switching to 1
   final int? frameFormat;
 
   ///  DEFAULT_BANDWIDTH = 1
   final double? bandwidthFactor;
 
   const UVCCameraViewParamsEntity({
-    this.aspectRatio,
     this.minFps = 10,
     this.maxFps = 60,
     this.bandwidthFactor = 1.0,
@@ -33,13 +29,7 @@ class UVCCameraViewParamsEntity {
   });
 
   Map<String, dynamic> toMap() {
-    return {
-      "aspectRatio": aspectRatio,
-      "minFps": minFps,
-      "maxFps": maxFps,
-      "frameFormat": frameFormat,
-      "bandwidthFactor": bandwidthFactor
-    };
+    return {"minFps": minFps, "maxFps": maxFps, "frameFormat": frameFormat, "bandwidthFactor": bandwidthFactor};
   }
 }
 

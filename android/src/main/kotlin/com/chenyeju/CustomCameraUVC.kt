@@ -134,22 +134,24 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
             Logger.e(TAG, "open camera failed.", e)
         }
 
+        var minFps = 10
+        var maxFps = 60
+        var frameFormat = UVCCamera.FRAME_FORMAT_MJPEG
+        var bandwidthFactor = UVCCamera.DEFAULT_BANDWIDTH
+
+        if (params is Map<*, *>) {
+            minFps = (params["minFps"] as? Number)?.toInt() ?: minFps
+            maxFps = (params["maxFps"] as? Number)?.toInt() ?: maxFps
+            frameFormat = (params["frameFormat"] as? Number)?.toInt() ?: frameFormat
+            bandwidthFactor = (params["bandwidthFactor"] as? Number)?.toFloat() ?: bandwidthFactor
+        }
+
         // 2. set preview size and register preview callback
         var previewSize = getSuitableSize(request.previewWidth, request.previewHeight).apply {
             mCameraRequest!!.previewWidth = width
             mCameraRequest!!.previewHeight = height
         }
-         var minFps = 10
-         var maxFps = 60
-         var frameFormat = UVCCamera.FRAME_FORMAT_MJPEG
-         var bandwidthFactor = UVCCamera.DEFAULT_BANDWIDTH
 
-         if (params is Map<*, *>) {
-            minFps = (params["minFps"] as? Number)?.toInt() ?: minFps
-            maxFps = (params["maxFps"] as? Number)?.toInt() ?: maxFps
-            frameFormat = (params["frameFormat"] as? Number)?.toInt() ?: frameFormat
-            bandwidthFactor = (params["bandwidthFactor"] as? Number)?.toFloat() ?: bandwidthFactor
-         }
         try {
             Logger.i(TAG, "getSuitableSize: $previewSize")
             if (! isPreviewSizeSupported(previewSize)) {
@@ -293,8 +295,6 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
             values.put(MediaStore.Images.ImageColumns.DISPLAY_NAME, displayName)
             values.put(MediaStore.Images.ImageColumns.DATA, path)
             values.put(MediaStore.Images.ImageColumns.DATE_TAKEN, date)
-            values.put(MediaStore.Images.ImageColumns.LONGITUDE, location?.longitude)
-            values.put(MediaStore.Images.ImageColumns.LATITUDE, location?.latitude)
             ctx.contentResolver?.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
             mMainHandler.post {
                 callback.onComplete(path)

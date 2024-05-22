@@ -1,7 +1,29 @@
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
 enum UVCCameraState { opened, closed, error }
+
+class PreviewSize {
+  int? width;
+  int? height;
+  PreviewSize({this.width, this.height});
+
+  Map<String, dynamic> toMap() {
+    return {"width": width, "height": height};
+  }
+
+  PreviewSize.fromJson(dynamic json) {
+    width = json["width"];
+    height = json["height"];
+  }
+
+  @override
+  String toString() {
+    return 'PreviewSize{width: $width, height: $height}';
+  }
+}
 
 class UVCCameraController {
   static const String _channelName = "flutter_uvc_camera/channel";
@@ -21,6 +43,8 @@ class UVCCameraController {
   final List<String> _callStrings = [];
   List<String> get getCallStrings => _callStrings;
   Function(String)? msgCallback;
+  List<PreviewSize> _previewSizes = [];
+  List<PreviewSize> get getPreviewSizes => _previewSizes;
 
   MethodChannel? _cameraChannel;
 
@@ -73,6 +97,25 @@ class UVCCameraController {
 
   void startCamera() async {
     await _cameraChannel?.invokeMethod('startCamera');
+  }
+
+  /// 获取全部预览大小
+  Future getAllPreviewSizes() async {
+    var result = await _cameraChannel?.invokeMethod('getAllPreviewSizes');
+    List<PreviewSize> list = [];
+    json.decode(result)?.forEach((element) {
+      list.add(PreviewSize.fromJson(element));
+    });
+    _previewSizes = list;
+  }
+
+  /// 获取当前摄像头请求参数
+  Future<String?> getCurrentCameraRequestParameters() async {
+    return await _cameraChannel?.invokeMethod('getCurrentCameraRequestParameters');
+  }
+
+  void updateResolution(PreviewSize? previewSize) {
+    _cameraChannel?.invokeMethod('updateResolution', previewSize?.toMap());
   }
 
   Future<String?> takePicture() async {

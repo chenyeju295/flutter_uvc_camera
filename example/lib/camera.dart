@@ -46,13 +46,13 @@ class _CameraTestState extends State<CameraTest> {
           children: [
             Text(errText),
             TextButton(
-              child: const Text('关闭摄像'),
+              child: const Text('close'),
               onPressed: () {
                 cameraController?.closeCamera();
               },
             ),
             TextButton(
-              child: const Text('打开摄像'),
+              child: const Text('open'),
               onPressed: () {
                 cameraController?.openUVCCamera();
               },
@@ -61,9 +61,24 @@ class _CameraTestState extends State<CameraTest> {
               SizedBox(
                   child: UVCCameraView(
                       cameraController: cameraController!,
-                      params: const UVCCameraViewParamsEntity(aspectRatio: 1),
+                      params: const UVCCameraViewParamsEntity(frameFormat: 0),
                       width: 300,
                       height: 300)),
+            TextButton(
+              child: const Text('updateResolution'),
+              onPressed: () async {
+                await cameraController?.getAllPreviewSizes();
+                cameraController?.updateResolution(PreviewSize(width: 352, height: 288));
+              },
+            ),
+            TextButton(
+              child: const Text('getCurrentCameraRequestParameters'),
+              onPressed: () {
+                cameraController
+                    ?.getCurrentCameraRequestParameters()
+                    .then((value) => showCustomToast(value.toString()));
+              },
+            ),
             TextButton(
               child: const Text('点击拍照----------------'),
               onPressed: () {},

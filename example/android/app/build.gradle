@@ -25,7 +25,6 @@ if (flutterVersionName == null) {
 android {
     namespace "com.example.flutter_uvc_camera_example"
     compileSdk 34
-    ndkVersion flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8

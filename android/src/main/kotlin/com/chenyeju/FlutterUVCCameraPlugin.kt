@@ -12,17 +12,18 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     private val channelName = "flutter_uvc_camera/channel"
     private val viewName = "uvc_camera_view"
-    private var channel: MethodChannel?=null
-    private lateinit var mUVCCameraViewFactory : UVCCameraViewFactory
-    private var activity: Activity ?= null
+    private var channel: MethodChannel? = null
+    private lateinit var mUVCCameraViewFactory: UVCCameraViewFactory
+    private var activity: Activity? = null
     private var permissionResultListener: PermissionResultListener? = null
-    private var mActivityPluginBinding: ActivityPluginBinding ?= null
-    private var requestPermissionsResultListener:  io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener? = null
+    private var mActivityPluginBinding: ActivityPluginBinding? = null
+    private var requestPermissionsResultListener: io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener? =
+        null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        channel = MethodChannel(flutterPluginBinding.binaryMessenger, channelName )
+        channel = MethodChannel(flutterPluginBinding.binaryMessenger, channelName)
         channel!!.setMethodCallHandler(this)
-        mUVCCameraViewFactory = UVCCameraViewFactory(this,channel!!)
+        mUVCCameraViewFactory = UVCCameraViewFactory(this, channel!!)
         flutterPluginBinding.platformViewRegistry.registerViewFactory(viewName, mUVCCameraViewFactory)
     }
 
@@ -36,15 +37,18 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
         mActivityPluginBinding = binding
-        requestPermissionsResultListener =io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener { requestCode, permissions, grantResults ->
-            permissionResultListener?.onPermissionResult(requestCode, permissions, grantResults)
-            true
-        }
-        binding.addRequestPermissionsResultListener (requestPermissionsResultListener!!)
+        requestPermissionsResultListener =
+            io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener { requestCode, permissions, grantResults ->
+                permissionResultListener?.onPermissionResult(requestCode, permissions, grantResults)
+                true
+            }
+        binding.addRequestPermissionsResultListener(requestPermissionsResultListener!!)
     }
+
     fun setPermissionResultListener(listener: PermissionResultListener) {
         this.permissionResultListener = listener
     }
+
     override fun onDetachedFromActivityForConfigChanges() {
 
     }
@@ -68,9 +72,11 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             "initializeCamera" -> {
                 mUVCCameraViewFactory.initCamera()
             }
+
             "openUVCCamera" -> {
                 mUVCCameraViewFactory.openUVCCamera()
             }
+
             "takePicture" -> {
                 mUVCCameraViewFactory.takePicture(
                     object : UVCPictureCallback {
@@ -83,12 +89,21 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                     }
                 )
             }
-
-//            "resetCamera" -> {
-//                    mUVCCameraViewFactory.resetCamera()
-//            }
             "closeCamera" -> {
                 mUVCCameraViewFactory.closeCamera()
+            }
+
+
+            "getAllPreviewSizes" -> {
+               result.success(mUVCCameraViewFactory.getAllPreviewSizes())
+            }
+
+            "getCurrentCameraRequestParameters" -> {
+                result.success(mUVCCameraViewFactory.getCurrentCameraRequestParameters())
+            }
+
+            "updateResolution" -> {
+                mUVCCameraViewFactory.updateResolution(call.arguments())
             }
 
             "getPlatformVersion" -> {
@@ -101,7 +116,4 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         }
 
     }
-
-
 }
-
