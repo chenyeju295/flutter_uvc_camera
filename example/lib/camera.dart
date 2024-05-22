@@ -68,7 +68,8 @@ class _CameraTestState extends State<CameraTest> {
               child: const Text('updateResolution'),
               onPressed: () async {
                 await cameraController?.getAllPreviewSizes();
-                cameraController?.updateResolution(PreviewSize(width: 352, height: 288));
+                cameraController
+                    ?.updateResolution(PreviewSize(width: 352, height: 288));
               },
             ),
             TextButton(
