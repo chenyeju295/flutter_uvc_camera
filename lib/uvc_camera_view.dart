@@ -15,7 +15,7 @@ class UVCCameraViewParamsEntity {
   final int? maxFps;
 
   /// camera preview frame format 1 (MJPEG) or 0 (YUV)
-  /// DEFAULT 1(MJPEG)  If preview fails and the screen goes black, please try switching to 1
+  /// DEFAULT 1(MJPEG)  If preview fails and the screen goes black, please try switching to 0
   final int? frameFormat;
 
   ///  DEFAULT_BANDWIDTH = 1
