@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_uvc_camera/uvc_camera_controller.dart';
 
 import 'camera.dart';
 
@@ -22,8 +21,7 @@ class _MyAppState extends State<MyApp> {
       body: Center(
         child: TextButton(
             onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const CameraTest()));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const CameraTest()));
             },
             child: const Text('camera test')),
       ),

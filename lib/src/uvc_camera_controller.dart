@@ -2,28 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-
-enum UVCCameraState { opened, closed, error }
-
-class PreviewSize {
-  int? width;
-  int? height;
-  PreviewSize({this.width, this.height});
-
-  Map<String, dynamic> toMap() {
-    return {"width": width, "height": height};
-  }
-
-  PreviewSize.fromJson(dynamic json) {
-    width = json["width"];
-    height = json["height"];
-  }
-
-  @override
-  String toString() {
-    return 'PreviewSize{width: $width, height: $height}';
-  }
-}
+import 'package:flutter_uvc_camera/uvc_camera.dart';
 
 class UVCCameraController {
   static const String _channelName = "flutter_uvc_camera/channel";
@@ -34,7 +13,7 @@ class UVCCameraController {
   Function(UVCCameraState)? cameraStateCallback;
 
   /// 拍照按钮回调
-  Function(String)? clickTakePictureButtonCallback;
+  Function(String path)? clickTakePictureButtonCallback;
   UVCCameraState get getCameraState => _cameraState;
   String _cameraErrorMsg = '';
   String get getCameraErrorMsg => _cameraErrorMsg;
@@ -76,6 +55,29 @@ class UVCCameraController {
       case "CameraState":
         _setCameraState(call.arguments.toString());
         break;
+      case "onEncodeData":
+        final Map<dynamic, dynamic> args = call.arguments;
+        final VideoDataType type = _getDataTypeFromString(args['type']);
+        final Uint8List data = args['data'];
+        final int timestamp = args['timestamp'];
+        // callback(type, data, timestamp);
+
+        break;
+    }
+  }
+
+  static VideoDataType _getDataTypeFromString(String type) {
+    switch (type) {
+      case 'AAC':
+        return VideoDataType.aac;
+      case 'H264_KEY':
+        return VideoDataType.h264Key;
+      case 'H264_SPS':
+        return VideoDataType.h264Sps;
+      case 'H264':
+        return VideoDataType.h264;
+      default:
+        throw ArgumentError("Unknown data type: $type");
     }
   }
 
@@ -111,8 +113,7 @@ class UVCCameraController {
 
   /// 获取当前摄像头请求参数
   Future<String?> getCurrentCameraRequestParameters() async {
-    return await _cameraChannel
-        ?.invokeMethod('getCurrentCameraRequestParameters');
+    return await _cameraChannel?.invokeMethod('getCurrentCameraRequestParameters');
   }
 
   /// 更新预览大小
@@ -120,8 +121,16 @@ class UVCCameraController {
     _cameraChannel?.invokeMethod('updateResolution', previewSize?.toMap());
   }
 
+  ///拍照
   Future<String?> takePicture() async {
     String? path = await _cameraChannel?.invokeMethod('takePicture');
+    debugPrint("path: $path");
+    return path;
+  }
+
+  ///录像
+  Future<String?> takeVideo() async {
+    String? path = await _cameraChannel?.invokeMethod('takeVideo');
     debugPrint("path: $path");
     return path;
   }

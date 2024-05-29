@@ -1,7 +1,7 @@
 package com.chenyeju
 
-interface UVCPictureCallback {
-    fun onPictureTaken(path: String)
+interface UVCStringCallback {
+    fun onSuccess(path: String)
     fun onError(error: String)
 }
 

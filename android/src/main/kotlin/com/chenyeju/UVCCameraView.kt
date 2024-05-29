@@ -31,7 +31,9 @@ import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.render.env.RotateType
 import com.jiangdg.ausbc.utils.Logger
 import com.jiangdg.ausbc.utils.SettableFuture
+import com.jiangdg.ausbc.utils.ToastUtils
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
+import com.jiangdg.ausbc.widget.CaptureMediaView
 import com.jiangdg.ausbc.widget.IAspectRatio
 import com.jiangdg.usb.USBMonitor
 import com.jiangdg.uvc.IButtonCallback
@@ -378,6 +380,11 @@ internal class UVCCameraView(
     private fun captureImage(callBack: ICaptureCallBack, savePath: String? = null) {
         getCurrentCamera()?.captureImage(callBack, savePath)
     }
+
+    private fun captureVideoStart(callBack: ICaptureCallBack, path: String ?= null, durationInSec: Long = 0L) {
+        getCurrentCamera()?.captureVideoStart(callBack, path, durationInSec)
+    }
+
     fun switchCamera(usbDevice: UsbDevice) {
         getCurrentCamera()?.closeCamera()
         try {
@@ -478,8 +485,8 @@ internal class UVCCameraView(
             camera.setButtonCallback(IButtonCallback { button, state -> // 拍照按钮被按下
                 if (button == 1 && state == 1) {
                     takePicture(
-                        object : UVCPictureCallback {
-                            override fun onPictureTaken(path: String) {
+                        object : UVCStringCallback {
+                            override fun onSuccess(path: String) {
                                 mChannel.invokeMethod("takePictureSuccess", path)
                             }
 
@@ -500,7 +507,7 @@ internal class UVCCameraView(
 
     private fun isCameraOpened() = getCurrentCamera()?.isCameraOpened()  ?: false
 
-    fun takePicture(callback: UVCPictureCallback) {
+    fun takePicture(callback: UVCStringCallback) {
 
         if (!isCameraOpened()) {
             callFlutter("摄像头未打开")
@@ -514,7 +521,7 @@ internal class UVCCameraView(
 
             override fun onComplete(path: String?) {
                 if (path != null) {
-                    callback.onPictureTaken(path)
+                    callback.onSuccess(path)
                     MediaScannerConnection.scanFile(view.context, arrayOf(path), null) {
                             mPath, uri ->
                         // 文件已经被扫描到媒体数据库
@@ -529,6 +536,31 @@ internal class UVCCameraView(
             }
 
         })
+    }
+
+    fun  takeVideo(callback: UVCStringCallback) {
+        if (!isCameraOpened()) {
+            callFlutter("摄像头未打开")
+            setCameraERRORState("设备未打开")
+            return
+        }
+        captureVideoStart(object : ICaptureCallBack {
+            override fun onBegin() {
+
+            }
+
+            override fun onError(error: String?) {
+                ToastUtils.show(error ?: "未知异常")
+
+            }
+
+            override fun onComplete(path: String?) {
+                ToastUtils.show(path ?: "")
+
+            }
+
+        })
+
     }
 
 }

@@ -1,8 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_uvc_camera/uvc_camera_controller.dart';
-import 'package:flutter_uvc_camera/uvc_camera_view.dart';
+import 'package:flutter_uvc_camera/uvc_camera.dart';
 
 class CameraTest extends StatefulWidget {
   const CameraTest({super.key});
@@ -68,8 +67,7 @@ class _CameraTestState extends State<CameraTest> {
               child: const Text('updateResolution'),
               onPressed: () async {
                 await cameraController?.getAllPreviewSizes();
-                cameraController
-                    ?.updateResolution(PreviewSize(width: 352, height: 288));
+                cameraController?.updateResolution(PreviewSize(width: 352, height: 288));
               },
             ),
             TextButton(
@@ -80,97 +78,40 @@ class _CameraTestState extends State<CameraTest> {
                     .then((value) => showCustomToast(value.toString()));
               },
             ),
-            TextButton(
-              child: const Text('点击拍照----------------'),
-              onPressed: () {},
-            ),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 GestureDetector(
                   onTap: () => takePicture(0),
                   behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    color: Colors.green,
-                    child: Image.file(File(images[0])),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.green,
+                        child: Image.file(File(images[0])),
+                      ),
+                      const Text('takePicture'),
+                    ],
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => takePicture(1),
+                  onTap: () => takeVideo(),
                   behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    color: Colors.green,
-                    child: Image.file(File(images[1])),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => takePicture(2),
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    color: Colors.green,
-                    child: Image.file(File(images[2])),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.red,
+                        child: Image.file(File(images[1])),
+                      ),
+                      const Text('takeVideo'),
+                    ],
                   ),
                 ),
               ],
-            ),
-            TextButton(
-              child: const Text('点击拍照-------------'),
-              onPressed: () {},
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                GestureDetector(
-                  onTap: () => takePicture(3),
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    color: Colors.red,
-                    child: Image.file(File(images[3])),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => takePicture(4),
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    color: Colors.red,
-                    child: Image.file(File(images[4])),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => takePicture(5),
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    color: Colors.red,
-                    child: Image.file(File(images[5])),
-                  ),
-                ),
-              ],
-            ),
-            TextButton(
-              child: const Text('点击拍照------------------'),
-              onPressed: () {},
-            ),
-            GestureDetector(
-              onTap: () => takePicture(6),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                width: 120,
-                height: 120,
-                color: Colors.blue,
-                child: Image.file(File(images[6])),
-              ),
             ),
             const SizedBox(height: 100)
           ],
@@ -186,4 +127,6 @@ class _CameraTestState extends State<CameraTest> {
       setState(() {});
     }
   }
+
+  takeVideo() {}
 }
