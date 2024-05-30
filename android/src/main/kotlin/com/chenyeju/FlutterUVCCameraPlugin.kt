@@ -102,6 +102,12 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                     }
                 )
             }
+            "captureStreamStart" -> {
+                mUVCCameraViewFactory.captureStreamStart()
+            }
+            "captureStreamStop" -> {
+                mUVCCameraViewFactory.captureStreamStop()
+            }
 
             "closeCamera" -> {
                 mUVCCameraViewFactory.closeCamera()

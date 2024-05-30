@@ -57,27 +57,9 @@ class UVCCameraController {
         break;
       case "onEncodeData":
         final Map<dynamic, dynamic> args = call.arguments;
-        final VideoDataType type = _getDataTypeFromString(args['type']);
-        final Uint8List data = args['data'];
-        final int timestamp = args['timestamp'];
-        // callback(type, data, timestamp);
-
+        // capture H264 & AAC only
+        debugPrint(args.toString());
         break;
-    }
-  }
-
-  static VideoDataType _getDataTypeFromString(String type) {
-    switch (type) {
-      case 'AAC':
-        return VideoDataType.aac;
-      case 'H264_KEY':
-        return VideoDataType.h264Key;
-      case 'H264_SPS':
-        return VideoDataType.h264Sps;
-      case 'H264':
-        return VideoDataType.h264;
-      default:
-        throw ArgumentError("Unknown data type: $type");
     }
   }
 
@@ -96,6 +78,14 @@ class UVCCameraController {
   //     debugPrint(result.toString());
   //   }
   // }
+
+  void captureStreamStart() {
+    _cameraChannel?.invokeMethod('captureStreamStart');
+  }
+
+  void captureStreamStop() {
+    _cameraChannel?.invokeMethod('captureStreamStop');
+  }
 
   void startCamera() async {
     await _cameraChannel?.invokeMethod('startCamera');

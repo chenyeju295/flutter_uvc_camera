@@ -86,6 +86,23 @@ class _CameraTestState extends State<CameraTest> {
                     .then((value) => showCustomToast(value.toString()));
               },
             ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton(
+                  child: const Text('captureStreamStart'),
+                  onPressed: () {
+                    cameraController?.captureStreamStart();
+                  },
+                ),
+                // TextButton(
+                //   child: const Text('captureStreamStop'),
+                //   onPressed: () {
+                //     cameraController?.captureStreamStop();
+                //   },
+                // ),
+              ],
+            ),
             Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [

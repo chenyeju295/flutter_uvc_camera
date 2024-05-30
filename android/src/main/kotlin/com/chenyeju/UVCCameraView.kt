@@ -10,6 +10,8 @@ import android.content.pm.PackageManager
 import android.graphics.SurfaceTexture
 import android.hardware.usb.UsbDevice
 import android.media.MediaScannerConnection
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.SurfaceView
@@ -27,6 +29,7 @@ import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
 import com.jiangdg.ausbc.callback.ICaptureCallBack
 import com.jiangdg.ausbc.callback.IDeviceConnectCallBack
+import com.jiangdg.ausbc.callback.IEncodeDataCallBack
 import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.render.env.RotateType
 import com.jiangdg.ausbc.utils.Logger
@@ -39,6 +42,7 @@ import com.jiangdg.usb.USBMonitor
 import com.jiangdg.uvc.IButtonCallback
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
+import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -508,6 +512,39 @@ internal class UVCCameraView(
 
 
     }
+    /**
+     * Start capture H264 & AAC only
+     */
+     fun captureStreamStart() {
+        setEncodeDataCallBack()
+        getCurrentCamera()?.captureStreamStart()
+    }
+
+     fun captureStreamStop() {
+        getCurrentCamera()?.captureStreamStop()
+    }
+
+    private fun setEncodeDataCallBack() {
+        getCurrentCamera()?.setEncodeDataCallBack(object :  IEncodeDataCallBack {
+            override fun onEncodeData(
+                type: IEncodeDataCallBack.DataType,
+                buffer: ByteBuffer,
+                offset: Int,
+                size: Int,
+                timestamp: Long
+            ) { val data = ByteArray(size)
+                buffer.get(data, offset, size)
+                val args = hashMapOf<String, Any>(
+                    "type" to type.name,
+                    "data" to data,
+                    "timestamp" to timestamp
+                )
+                Handler(Looper.getMainLooper()).post {
+                    mChannel.invokeMethod("onEncodeData", args)
+                }}
+        })
+    }
+
 
     private fun isCameraOpened() = getCurrentCamera()?.isCameraOpened()  ?: false
 
