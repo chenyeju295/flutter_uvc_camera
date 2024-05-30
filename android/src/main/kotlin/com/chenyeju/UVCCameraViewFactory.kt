@@ -28,6 +28,10 @@ class UVCCameraViewFactory(private val plugin: FlutterUVCCameraPlugin,private va
     fun takePicture(callback: UVCStringCallback){
         cameraView.takePicture(callback)
     }
+    fun captureVideo(callback: UVCStringCallback){
+        cameraView.captureVideo(callback)
+    }
+
 
     fun getAllPreviewSizes() = cameraView.getAllPreviewSizes();
     fun getCurrentCameraRequestParameters() = cameraView.getCurrentCameraRequestParameters();

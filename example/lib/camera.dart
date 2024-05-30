@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_uvc_camera/uvc_camera.dart';
 
@@ -33,6 +34,8 @@ class _CameraTestState extends State<CameraTest> {
     );
   }
 
+  String videoPath = '';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -44,17 +47,22 @@ class _CameraTestState extends State<CameraTest> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(errText),
-            TextButton(
-              child: const Text('close'),
-              onPressed: () {
-                cameraController?.closeCamera();
-              },
-            ),
-            TextButton(
-              child: const Text('open'),
-              onPressed: () {
-                cameraController?.openUVCCamera();
-              },
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton(
+                  child: const Text('close'),
+                  onPressed: () {
+                    cameraController?.closeCamera();
+                  },
+                ),
+                TextButton(
+                  child: const Text('open'),
+                  onPressed: () {
+                    cameraController?.openUVCCamera();
+                  },
+                ),
+              ],
             ),
             if (cameraController != null)
               SizedBox(
@@ -78,7 +86,7 @@ class _CameraTestState extends State<CameraTest> {
                     .then((value) => showCustomToast(value.toString()));
               },
             ),
-            Row(
+            Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 GestureDetector(
@@ -89,25 +97,28 @@ class _CameraTestState extends State<CameraTest> {
                       Container(
                         width: 80,
                         height: 80,
+                        alignment: Alignment.center,
                         color: Colors.green,
-                        child: Image.file(File(images[0])),
+                        child: images[0] == '' ? Text('takePicture') : Image.file(File(images[0])),
                       ),
-                      const Text('takePicture'),
                     ],
                   ),
                 ),
+                SizedBox(height: 20),
                 GestureDetector(
-                  onTap: () => takeVideo(),
+                  onTap: () => captureVideo(1),
                   behavior: HitTestBehavior.opaque,
-                  child: Column(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
                         width: 80,
                         height: 80,
-                        color: Colors.red,
-                        child: Image.file(File(images[1])),
+                        color: Colors.blue,
+                        alignment: Alignment.center,
+                        child: Text('take video'),
                       ),
-                      const Text('takeVideo'),
+                      Expanded(child: Text("videoPath" + videoPath)),
                     ],
                   ),
                 ),
@@ -128,5 +139,11 @@ class _CameraTestState extends State<CameraTest> {
     }
   }
 
-  takeVideo() {}
+  captureVideo(int i) async {
+    String? path = await cameraController?.captureVideo();
+    if (path != null) {
+      videoPath = path;
+      setState(() {});
+    }
+  }
 }

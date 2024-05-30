@@ -53,6 +53,7 @@ internal class UVCCameraView(
     private var mCameraClient: MultiCameraClient? = null
     private val mCameraMap = hashMapOf<Int, MultiCameraClient.ICamera>()
     private var mCurrentCamera: SettableFuture<MultiCameraClient.ICamera>? = null
+    private var isCapturingVideoOrAudio: Boolean = false
     private val mRequestPermission: AtomicBoolean by lazy {
         AtomicBoolean(false)
     }
@@ -381,6 +382,9 @@ internal class UVCCameraView(
         getCurrentCamera()?.captureImage(callBack, savePath)
     }
 
+     fun captureVideoStop() {
+        getCurrentCamera()?.captureVideoStop()
+    }
     private fun captureVideoStart(callBack: ICaptureCallBack, path: String ?= null, durationInSec: Long = 0L) {
         getCurrentCamera()?.captureVideoStart(callBack, path, durationInSec)
     }
@@ -538,25 +542,41 @@ internal class UVCCameraView(
         })
     }
 
-    fun  takeVideo(callback: UVCStringCallback) {
+    fun  captureVideo(callback: UVCStringCallback) {
+        if (isCapturingVideoOrAudio) {
+            captureVideoStop()
+            return
+        }
         if (!isCameraOpened()) {
             callFlutter("摄像头未打开")
             setCameraERRORState("设备未打开")
             return
         }
+
         captureVideoStart(object : ICaptureCallBack {
             override fun onBegin() {
-
+                isCapturingVideoOrAudio = true
+                callFlutter("开始录像")
             }
 
             override fun onError(error: String?) {
-                ToastUtils.show(error ?: "未知异常")
-
+                isCapturingVideoOrAudio = false
+                callback.onError(error ?: "captureVideo error")
             }
 
             override fun onComplete(path: String?) {
-                ToastUtils.show(path ?: "")
+                if (path != null) {
+                    callback.onSuccess(path)
+                    MediaScannerConnection.scanFile(view.context, arrayOf(path), null) {
+                            mPath, uri ->
+                        println("Media scan completed for file: $mPath with uri: $uri")
+                    }
+                    isCapturingVideoOrAudio = false
+                } else {
+                    isCapturingVideoOrAudio = false
+                    callback.onError("未能保存视频")
 
+                }
             }
 
         })

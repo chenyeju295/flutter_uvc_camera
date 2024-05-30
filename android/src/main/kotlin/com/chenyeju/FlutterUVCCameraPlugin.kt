@@ -89,6 +89,20 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                     }
                 )
             }
+
+            "captureVideo" -> {
+                mUVCCameraViewFactory.captureVideo(
+                    object : UVCStringCallback {
+                        override fun onSuccess(path: String) {
+                            result.success(path)
+                        }
+                        override fun onError(error: String) {
+                            result.error("error", error, error)
+                        }
+                    }
+                )
+            }
+
             "closeCamera" -> {
                 mUVCCameraViewFactory.closeCamera()
             }

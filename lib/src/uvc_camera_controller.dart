@@ -129,8 +129,8 @@ class UVCCameraController {
   }
 
   ///录像
-  Future<String?> takeVideo() async {
-    String? path = await _cameraChannel?.invokeMethod('takeVideo');
+  Future<String?> captureVideo() async {
+    String? path = await _cameraChannel?.invokeMethod('captureVideo');
     debugPrint("path: $path");
     return path;
   }
