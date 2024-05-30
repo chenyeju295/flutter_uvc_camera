@@ -103,7 +103,8 @@ class UVCCameraController {
 
   /// 获取当前摄像头请求参数
   Future<String?> getCurrentCameraRequestParameters() async {
-    return await _cameraChannel?.invokeMethod('getCurrentCameraRequestParameters');
+    return await _cameraChannel
+        ?.invokeMethod('getCurrentCameraRequestParameters');
   }
 
   /// 更新预览大小

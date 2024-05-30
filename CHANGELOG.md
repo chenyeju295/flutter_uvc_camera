@@ -1,5 +1,8 @@
 
+## 0.0.4
 
+- feat take video
+- feat captureStream callback
 
 ## 0.0.3
 

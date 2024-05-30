@@ -27,6 +27,11 @@ class UVCCameraViewParamsEntity {
   });
 
   Map<String, dynamic> toMap() {
-    return {"minFps": minFps, "maxFps": maxFps, "frameFormat": frameFormat, "bandwidthFactor": bandwidthFactor};
+    return {
+      "minFps": minFps,
+      "maxFps": maxFps,
+      "frameFormat": frameFormat,
+      "bandwidthFactor": bandwidthFactor
+    };
   }
 }

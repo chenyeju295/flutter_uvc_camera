@@ -8,7 +8,11 @@ class UVCCameraView extends StatefulWidget {
   final double height;
   final UVCCameraViewParamsEntity? params;
   const UVCCameraView(
-      {super.key, required this.cameraController, required this.width, required this.height, this.params});
+      {super.key,
+      required this.cameraController,
+      required this.width,
+      required this.height,
+      this.params});
 
   @override
   State<UVCCameraView> createState() => _UVCCameraViewState();
