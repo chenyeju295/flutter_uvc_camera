@@ -1,3 +1,3 @@
-part of uvc_camera;
+part of flutter_uvc_camera;
 
 enum UVCCameraState { opened, closed, error }

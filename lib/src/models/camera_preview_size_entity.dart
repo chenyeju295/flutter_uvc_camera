@@ -1,4 +1,4 @@
-part of uvc_camera;
+part of flutter_uvc_camera;
 
 class PreviewSize {
   int? width;

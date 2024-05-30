@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_uvc_camera/uvc_camera.dart';
+import 'package:flutter_uvc_camera/flutter_uvc_camera.dart';
 
 class UVCCameraController {
   static const String _channelName = "flutter_uvc_camera/channel";

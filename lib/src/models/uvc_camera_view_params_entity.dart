@@ -1,4 +1,4 @@
-part of uvc_camera;
+part of flutter_uvc_camera;
 
 /// 自定义参数 可空  Custom parameters can be empty
 class UVCCameraViewParamsEntity {

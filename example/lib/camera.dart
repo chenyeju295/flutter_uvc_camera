@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_uvc_camera/uvc_camera.dart';
+import 'package:flutter_uvc_camera/flutter_uvc_camera.dart';
 
 class CameraTest extends StatefulWidget {
   const CameraTest({super.key});
@@ -75,8 +74,7 @@ class _CameraTestState extends State<CameraTest> {
               child: const Text('updateResolution'),
               onPressed: () async {
                 await cameraController?.getAllPreviewSizes();
-                cameraController
-                    ?.updateResolution(PreviewSize(width: 352, height: 288));
+                cameraController?.updateResolution(PreviewSize(width: 352, height: 288));
               },
             ),
             TextButton(
@@ -117,9 +115,7 @@ class _CameraTestState extends State<CameraTest> {
                         height: 80,
                         alignment: Alignment.center,
                         color: Colors.green,
-                        child: images[0] == ''
-                            ? Text('takePicture')
-                            : Image.file(File(images[0])),
+                        child: images[0] == '' ? Text('takePicture') : Image.file(File(images[0])),
                       ),
                     ],
                   ),

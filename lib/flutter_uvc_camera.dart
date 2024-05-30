@@ -1,7 +1,4 @@
-library uvc_camera;
-
-import 'package:flutter_uvc_camera/src/uvc_camera_controller.dart';
-import 'package:flutter_uvc_camera/src/uvc_camera_view.dart';
+library flutter_uvc_camera;
 
 export 'src/uvc_camera_controller.dart';
 export 'src/uvc_camera_view.dart';
