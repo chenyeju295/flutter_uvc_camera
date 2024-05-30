@@ -118,6 +118,32 @@ class _CameraTestState extends State<CameraTest> {
 }
 ```
 
+## Problems
+### add proguard-rules.pro
+flutter run release encounters a NoSuchMethodError
+- example/android/app/build.gradle
+```gradle
+ buildTypes {
+      release {
+        <!--   ...-->
+        proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        minifyEnabled true
+    }
+}
+```
+- example/android/app/proguard-rules.pro
+```pro
+ -keep class com.jiangdg.uvc.UVCCamera {
+        native <methods>;
+  long mNativePtr;
+  }
+  -keep class com.jiangdg.uvc.IStatusCallback {
+  *;
+  }
+```
+ 
+  
+
 ## Notes
 - Ensure that the required permissions are configured before using the plugin, otherwise the plugin may not function 
   properly.

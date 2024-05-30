@@ -21,7 +21,8 @@ class _MyAppState extends State<MyApp> {
       body: Center(
         child: TextButton(
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const CameraTest()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => const CameraTest()));
             },
             child: const Text('camera test')),
       ),
