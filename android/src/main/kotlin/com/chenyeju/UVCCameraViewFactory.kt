@@ -25,7 +25,7 @@ class UVCCameraViewFactory(private val plugin: FlutterUVCCameraPlugin,private va
         cameraView.openUVCCamera()
     }
 
-    fun takePicture(callback: UVCPictureCallback){
+    fun takePicture(callback: UVCStringCallback){
         cameraView.takePicture(callback)
     }
 
