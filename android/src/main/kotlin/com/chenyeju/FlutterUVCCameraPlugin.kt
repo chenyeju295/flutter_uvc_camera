@@ -79,8 +79,8 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
             "takePicture" -> {
                 mUVCCameraViewFactory.takePicture(
-                    object : UVCPictureCallback {
-                        override fun onPictureTaken(path: String) {
+                    object : UVCStringCallback {
+                        override fun onSuccess(path: String) {
                             result.success(path)
                         }
                         override fun onError(error: String) {
