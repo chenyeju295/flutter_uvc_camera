@@ -140,6 +140,9 @@ flutter run release encounters a NoSuchMethodError
   -keep class com.jiangdg.uvc.IStatusCallback {
   *;
   }
+  -keep interface com.jiangdg.uvc.IButtonCallback {
+  *;
+  }
 ```
  
   
