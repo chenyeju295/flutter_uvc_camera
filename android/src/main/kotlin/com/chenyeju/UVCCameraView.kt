@@ -61,10 +61,16 @@ internal class UVCCameraView(
     private val mRequestPermission: AtomicBoolean by lazy {
         AtomicBoolean(false)
     }
-
+    private val mMainHandler = Handler(Looper.getMainLooper())
+    private var mStreamingActive = false
+    private var mStreamingThread: Thread? = null
+    private val mStreamingLock = Object()
 
     companion object {
         private const val TAG = "CameraView"
+        private const val REQUEST_PERMISSION = 1
+        private const val STREAM_INTERVAL_MS = 33 // ~30fps
+        private const val MAX_STREAMING_RETRIES = 3
     }
 
 //    init{
@@ -81,9 +87,10 @@ internal class UVCCameraView(
         return mViewBinding.root
     }
 
-
-    private fun setCameraERRORState(msg:String?=null){
-       mChannel.invokeMethod("CameraState","ERROR:$msg")
+    private fun setCameraERRORState(msg: String? = null) {
+        mMainHandler.post {
+            mChannel.invokeMethod("CameraState", "ERROR:$msg")
+        }
     }
 
     fun initCamera(){
@@ -101,8 +108,13 @@ internal class UVCCameraView(
     }
 
     fun openUVCCamera() {
-        checkCameraPermission()
-        openCamera()
+        try {
+            checkCameraPermission()
+            openCamera()
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to open UVC camera", e)
+            setCameraERRORState("Failed to open camera: ${e.localizedMessage}")
+        }
     }
 
     override fun dispose() {
@@ -120,19 +132,26 @@ internal class UVCCameraView(
             ICameraStateCallBack.State.CLOSED -> handleCameraClosed()
             ICameraStateCallBack.State.ERROR -> handleCameraError(msg)
         }
-        Logger.i(TAG, "------>CameraState: $code") ;
+        logInfo("CameraState: $code ${msg ?: ""}") 
     }
 
     private fun handleCameraError(msg: String?) {
-        mChannel.invokeMethod("CameraState", "ERROR:$msg")
+        mMainHandler.post {
+            mChannel.invokeMethod("CameraState", "ERROR:$msg")
+        }
     }
 
     private fun handleCameraClosed() {
-        mChannel.invokeMethod("CameraState", "CLOSED")
+        stopFrameStreaming()
+        mMainHandler.post {
+            mChannel.invokeMethod("CameraState", "CLOSED")
+        }
     }
 
     private fun handleCameraOpened() {
-        mChannel.invokeMethod("CameraState", "OPENED")
+        mMainHandler.post {
+            mChannel.invokeMethod("CameraState", "OPENED")
+        }
         setButtonCallback()
     }
 
@@ -229,9 +248,13 @@ internal class UVCCameraView(
                 width: Int,
                 height: Int
             ) {
-                registerMultiCamera()
-                checkCamera()
-
+                try {
+                    registerMultiCamera()
+                    checkCamera()
+                } catch (e: Exception) {
+                    Logger.e(TAG, "Error in surface texture available", e)
+                    setCameraERRORState("Surface texture error: ${e.localizedMessage}")
+                }
             }
 
             override fun onSurfaceTextureSizeChanged(
@@ -239,23 +262,42 @@ internal class UVCCameraView(
                 width: Int,
                 height: Int
             ) {
-                surfaceSizeChanged(width, height)
+                try {
+                    surfaceSizeChanged(width, height)
+                } catch (e: Exception) {
+                    Logger.e(TAG, "Error in surface texture size changed", e)
+                }
             }
 
             override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                unRegisterMultiCamera()
+                try {
+                    unRegisterMultiCamera()
+                } catch (e: Exception) {
+                    Logger.e(TAG, "Error in surface texture destroyed", e)
+                }
                 return false
             }
 
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
+                // No implementation needed
             }
         }
     }
 
     private fun checkCamera() {
-        if(mCameraClient?.getDeviceList()?.isEmpty() == true)
-        {
-            setCameraERRORState("未检测到设备")
+        try {
+            val device = getDefaultCamera()
+            if (device == null) {
+                setCameraERRORState("No camera detected")
+                return
+            }
+            
+            if (!mRequestPermission.get()) {
+                requestPermission(device)
+            }
+        } catch (e: Exception) {
+            Logger.e(TAG, "Error checking camera", e)
+            setCameraERRORState("Error checking camera: ${e.localizedMessage}")
         }
     }
 
@@ -273,33 +315,79 @@ internal class UVCCameraView(
 
         }
     }
-    private fun checkCameraPermission() : Boolean {
+    private fun checkCameraPermission() {
         if (mActivity == null) {
-            return false
+            mActivity = getActivityFromContext(mContext)
+            if (mActivity == null) {
+                setCameraERRORState("Activity not found")
+                return
+            }
         }
-        val hasCameraPermission = PermissionChecker.checkSelfPermission(
-            mActivity!!,
-            Manifest.permission.CAMERA
-        )
-        val hasStoragePermission = PermissionChecker.checkSelfPermission(
-            mActivity!!,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
+
+        val requiredPermissions = arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.READ_EXTERNAL_STORAGE
         )
 
+        val missingPermissions = requiredPermissions.filter {
+            PermissionChecker.checkSelfPermission(mContext, it) != PermissionChecker.PERMISSION_GRANTED
+        }
 
-        if (hasCameraPermission != PermissionChecker.PERMISSION_GRANTED
-            || hasStoragePermission != PermissionChecker.PERMISSION_GRANTED) {
+        if (missingPermissions.isNotEmpty()) {
             ActivityCompat.requestPermissions(
                 mActivity!!,
-                arrayOf(
-                    Manifest.permission.CAMERA,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                ),
-                1230
+                missingPermissions.toTypedArray(),
+                REQUEST_PERMISSION
             )
-            return false
+            return
         }
-        return true
+
+        // All permissions granted, proceed with initialization
+        initializeCamera()
+    }
+
+    private fun initializeCamera() {
+        try {
+            val cameraView = AspectRatioTextureView(mContext)
+            handleTextureView(cameraView)
+            mCameraView = cameraView
+            
+            // Configure layout parameters
+            val layoutParams = when (mViewBinding.fragmentContainer) {
+                is FrameLayout -> FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    Gravity.CENTER
+                )
+                is RelativeLayout -> RelativeLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                ).apply {
+                    addRule(RelativeLayout.CENTER_IN_PARENT)
+                }
+                is LinearLayout -> LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                ).apply {
+                    gravity = Gravity.CENTER
+                }
+                else -> ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+
+            mViewBinding.fragmentContainer.apply {
+                removeAllViews()
+                addView(cameraView, layoutParams)
+            }
+
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to initialize camera view", e)
+            setCameraERRORState("Failed to initialize camera view: ${e.localizedMessage}")
+        }
     }
 
     private fun callFlutter(msg: String, type: String? = null) {
@@ -525,23 +613,33 @@ internal class UVCCameraView(
     }
 
     private fun setEncodeDataCallBack() {
-        getCurrentCamera()?.setEncodeDataCallBack(object :  IEncodeDataCallBack {
+        getCurrentCamera()?.setEncodeDataCallBack(object : IEncodeDataCallBack {
             override fun onEncodeData(
                 type: IEncodeDataCallBack.DataType,
                 buffer: ByteBuffer,
                 offset: Int,
                 size: Int,
                 timestamp: Long
-            ) { val data = ByteArray(size)
-                buffer.get(data, offset, size)
-                val args = hashMapOf<String, Any>(
-                    "type" to type.name,
-                    "data" to data,
-                    "timestamp" to timestamp
-                )
-                Handler(Looper.getMainLooper()).post {
-                    mChannel.invokeMethod("onEncodeData", args)
-                }}
+            ) {
+                try {
+                    val data = ByteArray(size)
+                    val bufferPosition = buffer.position()
+                    buffer.get(data, 0, size)
+                    buffer.position(bufferPosition) // 重置buffer位置，不影响原始数据
+                    
+                    val args = hashMapOf<String, Any>(
+                        "type" to type.name,
+                        "data" to data,
+                        "timestamp" to timestamp
+                    )
+                    
+                    mMainHandler.post {
+                        mChannel.invokeMethod("onEncodeData", args)
+                    }
+                } catch (e: Exception) {
+                    logError("Error processing encoded data", e)
+                }
+            }
         })
     }
 
@@ -549,75 +647,394 @@ internal class UVCCameraView(
     private fun isCameraOpened() = getCurrentCamera()?.isCameraOpened()  ?: false
 
     fun takePicture(callback: UVCStringCallback) {
-
         if (!isCameraOpened()) {
-            callFlutter("摄像头未打开")
-            setCameraERRORState("设备未打开")
+            callback.onError("Camera not open")
             return
         }
-        captureImage( object : ICaptureCallBack {
-            override fun onBegin() {
-                callFlutter("开始拍照")
-            }
-
-            override fun onComplete(path: String?) {
-                if (path != null) {
-                    callback.onSuccess(path)
-                    MediaScannerConnection.scanFile(view.context, arrayOf(path), null) {
-                            mPath, uri ->
-                        // 文件已经被扫描到媒体数据库
-                        println("Media scan completed for file: $mPath with uri: $uri")
+        
+        try {
+            captureImage(object : ICaptureCallBack {
+                override fun onBegin() {
+                    logInfo("Starting to capture image")
+                    mMainHandler.post {
+                        mChannel.invokeMethod("captureState", "started")
                     }
-                } else {
-                    callback.onError("拍照失败，未能保存图片")
                 }
-            }
-            override fun onError(error: String?) {
-                callback.onError(error ?: "未知错误")
-            }
 
-        })
+                override fun onComplete(path: String?) {
+                    if (path != null) {
+                        logInfo("Image saved to: $path")
+                        callback.onSuccess(path)
+                        notifyMediaScanner(path)
+                        mMainHandler.post {
+                            mChannel.invokeMethod("captureState", "completed")
+                        }
+                    } else {
+                        logError("Failed to save image")
+                        callback.onError("Failed to save image file")
+                        mMainHandler.post {
+                            mChannel.invokeMethod("captureState", "error")
+                        }
+                    }
+                }
+                
+                override fun onError(error: String?) {
+                    logError("Error capturing image: $error")
+                    callback.onError(error ?: "Unknown error in image capture")
+                    mMainHandler.post {
+                        mChannel.invokeMethod("captureState", "error")
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            logError("Failed to take picture", e)
+            callback.onError("Failed to take picture: ${e.localizedMessage}")
+        }
     }
 
     fun  captureVideo(callback: UVCStringCallback) {
-        if (isCapturingVideoOrAudio) {
-            captureVideoStop()
-            return
-        }
         if (!isCameraOpened()) {
-            callFlutter("摄像头未打开")
-            setCameraERRORState("设备未打开")
+            callback.onError("Camera not open")
             return
         }
-
-        captureVideoStart(object : ICaptureCallBack {
-            override fun onBegin() {
-                isCapturingVideoOrAudio = true
-                callFlutter("开始录像")
-            }
-
-            override fun onError(error: String?) {
+        
+        if (isCapturingVideoOrAudio) {
+            try {
+                getCurrentCamera()?.captureVideoStop()
                 isCapturingVideoOrAudio = false
-                callback.onError(error ?: "captureVideo error")
+                logInfo("Video recording stopped")
+            } catch (e: Exception) {
+                logError("Error stopping video capture", e)
+                callback.onError("Failed to stop video: ${e.localizedMessage}")
             }
-
-            override fun onComplete(path: String?) {
-                if (path != null) {
-                    callback.onSuccess(path)
-                    MediaScannerConnection.scanFile(view.context, arrayOf(path), null) {
-                            mPath, uri ->
-                        println("Media scan completed for file: $mPath with uri: $uri")
+            return
+        }
+        
+        try {
+            captureVideoStart(object : ICaptureCallBack {
+                override fun onBegin() {
+                    isCapturingVideoOrAudio = true
+                    logInfo("Video recording started")
+                    mMainHandler.post {
+                        mChannel.invokeMethod("videoRecordingState", "started")
                     }
-                    isCapturingVideoOrAudio = false
-                } else {
-                    isCapturingVideoOrAudio = false
-                    callback.onError("未能保存视频")
-
                 }
-            }
 
-        })
+                override fun onError(error: String?) {
+                    isCapturingVideoOrAudio = false
+                    logError("Video recording error: $error")
+                    callback.onError(error ?: "Unknown error in video recording")
+                    mMainHandler.post {
+                        mChannel.invokeMethod("videoRecordingState", "error")
+                    }
+                }
 
+                override fun onComplete(path: String?) {
+                    isCapturingVideoOrAudio = false
+                    if (path != null) {
+                        logInfo("Video saved to: $path")
+                        callback.onSuccess(path)
+                        notifyMediaScanner(path)
+                        mMainHandler.post {
+                            mChannel.invokeMethod("videoRecordingState", "completed")
+                        }
+                    } else {
+                        logError("Failed to save video")
+                        callback.onError("Failed to save video file")
+                        mMainHandler.post {
+                            mChannel.invokeMethod("videoRecordingState", "error")
+                        }
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            logError("Failed to start video recording", e)
+            callback.onError("Failed to start video: ${e.localizedMessage}")
+        }
     }
 
+    // 通知媒体扫描器
+    private fun notifyMediaScanner(path: String) {
+        try {
+            MediaScannerConnection.scanFile(
+                mContext,
+                arrayOf(path),
+                null
+            ) { _, uri ->
+                logInfo("Media scanner completed: $uri")
+            }
+        } catch (e: Exception) {
+            logError("Error notifying media scanner", e)
+        }
+    }
+
+    // 新增：优化的流媒体处理方法
+    fun startFrameStreaming() {
+        if (mStreamingActive) return
+        
+        val camera = getCurrentCamera() as? CameraUVC ?: return
+        
+        synchronized(mStreamingLock) {
+            mStreamingActive = true
+            mStreamingThread = Thread {
+                var consecutiveErrors = 0
+                
+                while (mStreamingActive) {
+                    try {
+                        val frame = camera.getLatestFrame()
+                        if (frame != null) {
+                            val previewSize = camera.getPreviewSize()
+                            if (previewSize != null) {
+                                val frameFormat = camera.getCurrentFrameFormat()
+                                sendFrameToFlutter(frame, previewSize.width, previewSize.height, frameFormat)
+                                consecutiveErrors = 0
+                            }
+                        }
+                        Thread.sleep(STREAM_INTERVAL_MS.toLong())
+                    } catch (e: Exception) {
+                        if (e is InterruptedException) break
+                        
+                        consecutiveErrors++
+                        logError("Error in frame streaming", e)
+                        
+                        if (consecutiveErrors >= MAX_STREAMING_RETRIES) {
+                            logError("Too many streaming errors, stopping stream")
+                            stopFrameStreaming()
+                            break
+                        }
+                    }
+                }
+            }.apply { 
+                name = "FrameStreamingThread"
+                start() 
+            }
+        }
+    }
+    
+    fun stopFrameStreaming() {
+        synchronized(mStreamingLock) {
+            mStreamingActive = false
+            mStreamingThread?.interrupt()
+            mStreamingThread = null
+        }
+    }
+    
+    private fun sendFrameToFlutter(frameData: ByteArray, width: Int, height: Int, format: Int) {
+        val data = HashMap<String, Any>()
+        data["frameData"] = frameData
+        data["width"] = width
+        data["height"] = height
+        data["format"] = format
+        
+        mMainHandler.post {
+            mChannel.invokeMethod("onFrameAvailable", data)
+        }
+    }
+
+    // 优化视频捕获方法
+    fun captureVideo(callback: UVCStringCallback) {
+        if (!isCameraOpened()) {
+            callback.onError("Camera not open")
+            return
+        }
+        
+        if (isCapturingVideoOrAudio) {
+            try {
+                getCurrentCamera()?.captureVideoStop()
+                isCapturingVideoOrAudio = false
+                logInfo("Video recording stopped")
+            } catch (e: Exception) {
+                logError("Error stopping video capture", e)
+                callback.onError("Failed to stop video: ${e.localizedMessage}")
+            }
+            return
+        }
+        
+        try {
+            captureVideoStart(object : ICaptureCallBack {
+                override fun onBegin() {
+                    isCapturingVideoOrAudio = true
+                    logInfo("Video recording started")
+                    mMainHandler.post {
+                        mChannel.invokeMethod("videoRecordingState", "started")
+                    }
+                }
+
+                override fun onError(error: String?) {
+                    isCapturingVideoOrAudio = false
+                    logError("Video recording error: $error")
+                    callback.onError(error ?: "Unknown error in video recording")
+                    mMainHandler.post {
+                        mChannel.invokeMethod("videoRecordingState", "error")
+                    }
+                }
+
+                override fun onComplete(path: String?) {
+                    isCapturingVideoOrAudio = false
+                    if (path != null) {
+                        logInfo("Video saved to: $path")
+                        callback.onSuccess(path)
+                        notifyMediaScanner(path)
+                        mMainHandler.post {
+                            mChannel.invokeMethod("videoRecordingState", "completed")
+                        }
+                    } else {
+                        logError("Failed to save video")
+                        callback.onError("Failed to save video file")
+                        mMainHandler.post {
+                            mChannel.invokeMethod("videoRecordingState", "error")
+                        }
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            logError("Failed to start video recording", e)
+            callback.onError("Failed to start video: ${e.localizedMessage}")
+        }
+    }
+
+    // 优化图片捕获方法
+    fun takePicture(callback: UVCStringCallback) {
+        if (!isCameraOpened()) {
+            callback.onError("Camera not open")
+            return
+        }
+        
+        try {
+            captureImage(object : ICaptureCallBack {
+                override fun onBegin() {
+                    logInfo("Starting to capture image")
+                    mMainHandler.post {
+                        mChannel.invokeMethod("captureState", "started")
+                    }
+                }
+
+                override fun onComplete(path: String?) {
+                    if (path != null) {
+                        logInfo("Image saved to: $path")
+                        callback.onSuccess(path)
+                        notifyMediaScanner(path)
+                        mMainHandler.post {
+                            mChannel.invokeMethod("captureState", "completed")
+                        }
+                    } else {
+                        logError("Failed to save image")
+                        callback.onError("Failed to save image file")
+                        mMainHandler.post {
+                            mChannel.invokeMethod("captureState", "error")
+                        }
+                    }
+                }
+                
+                override fun onError(error: String?) {
+                    logError("Error capturing image: $error")
+                    callback.onError(error ?: "Unknown error in image capture")
+                    mMainHandler.post {
+                        mChannel.invokeMethod("captureState", "error")
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            logError("Failed to take picture", e)
+            callback.onError("Failed to take picture: ${e.localizedMessage}")
+        }
+    }
+    
+    // 通知媒体扫描器
+    private fun notifyMediaScanner(path: String) {
+        try {
+            MediaScannerConnection.scanFile(
+                mContext,
+                arrayOf(path),
+                null
+            ) { _, uri ->
+                logInfo("Media scanner completed: $uri")
+            }
+        } catch (e: Exception) {
+            logError("Error notifying media scanner", e)
+        }
+    }
+
+    // 改进流捕获方法
+    fun captureStreamStart() {
+        if (!isCameraOpened()) {
+            setCameraERRORState("Cannot start streaming: Camera not open")
+            return
+        }
+        
+        try {
+            setEncodeDataCallBack()
+            getCurrentCamera()?.captureStreamStart()
+            
+            logInfo("Stream capture started")
+            mMainHandler.post {
+                mChannel.invokeMethod("streamState", "started")
+            }
+        } catch (e: Exception) {
+            logError("Failed to start stream capture", e)
+            mMainHandler.post {
+                mChannel.invokeMethod("streamState", "error")
+            }
+        }
+    }
+
+    fun captureStreamStop() {
+        try {
+            getCurrentCamera()?.captureStreamStop()
+            logInfo("Stream capture stopped")
+            mMainHandler.post {
+                mChannel.invokeMethod("streamState", "stopped")
+            }
+        } catch (e: Exception) {
+            logError("Failed to stop stream capture", e)
+        }
+    }
+
+    // 获取相机信息的优化方法
+    fun getCameraInfo(): Map<String, Any> {
+        val camera = getCurrentCamera() as? CameraUVC
+        val infoMap = mutableMapOf<String, Any>()
+        
+        if (camera != null) {
+            infoMap["isOpened"] = camera.isCameraOpened
+            
+            camera.getPreviewSize()?.let {
+                infoMap["previewWidth"] = it.width
+                infoMap["previewHeight"] = it.height
+            }
+            
+            val fpsRange = camera.getFpsRange()
+            infoMap["minFps"] = fpsRange.first
+            infoMap["maxFps"] = fpsRange.second
+            infoMap["frameFormat"] = camera.getCurrentFrameFormat()
+            infoMap["deviceName"] = camera.device.deviceName ?: "Unknown"
+            infoMap["usbInfo"] = "${camera.device.vendorId}:${camera.device.productId}"
+        }
+        
+        return infoMap
+    }
+
+    // 优化的错误处理和日志方法
+    private fun logError(message: String, exception: Exception? = null) {
+        Logger.e(TAG, message, exception)
+        mMainHandler.post {
+            mChannel.invokeMethod("logMessage", mapOf(
+                "level" to "error",
+                "message" to message,
+                "details" to (exception?.localizedMessage ?: "")
+            ))
+        }
+    }
+
+    private fun logInfo(message: String) {
+        Logger.i(TAG, message)
+        if (Utils.debugCamera) {
+            mMainHandler.post {
+                mChannel.invokeMethod("logMessage", mapOf(
+                    "level" to "info",
+                    "message" to message
+                ))
+            }
+        }
+    }
 }

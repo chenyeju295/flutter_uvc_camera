@@ -39,6 +39,13 @@ class UVCCameraViewFactory(private val plugin: FlutterUVCCameraPlugin,private va
         cameraView.captureStreamStop()
     }
 
+    fun startFrameStreaming() {
+        cameraView.startFrameStreaming()
+    }
+
+    fun stopFrameStreaming() {
+        cameraView.stopFrameStreaming()
+    }
 
     fun getAllPreviewSizes() = cameraView.getAllPreviewSizes();
     fun getCurrentCameraRequestParameters() = cameraView.getCurrentCameraRequestParameters();
@@ -51,5 +58,16 @@ class UVCCameraViewFactory(private val plugin: FlutterUVCCameraPlugin,private va
         cameraView.updateResolution(arguments)
     }
 
+    fun getCameraInfo(): Map<String, Any> {
+        return cameraView.getCameraInfo()
+    }
+
+    fun isCameraOpened(): Boolean {
+        return try {
+            cameraView.isCameraOpened()
+        } catch (e: Exception) {
+            false
+        }
+    }
 
 }
