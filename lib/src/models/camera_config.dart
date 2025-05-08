@@ -59,9 +59,9 @@ class PreviewSize {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is PreviewSize && 
-           other.width == width && 
-           other.height == height;
+    return other is PreviewSize &&
+        other.width == width &&
+        other.height == height;
   }
 
   @override
@@ -74,4 +74,4 @@ enum FrameFormat {
 
   final int value;
   const FrameFormat(this.value);
-} 
+}

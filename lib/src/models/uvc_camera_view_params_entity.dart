@@ -36,13 +36,14 @@ class UVCCameraViewParamsEntity {
       "bandwidthFactor": bandwidthFactor
     };
   }
-  
+
   /// Convert to the new CameraConfig
   CameraConfig toCameraConfig() {
     return CameraConfig(
       minFps: minFps ?? 10,
       maxFps: maxFps ?? 60,
-      frameFormat: frameFormat == 0 ? FrameFormat.yuyv.value : FrameFormat.mjpeg.value,
+      frameFormat:
+          frameFormat == 0 ? FrameFormat.yuyv.value : FrameFormat.mjpeg.value,
       bandwidthFactor: bandwidthFactor ?? 1.0,
     );
   }

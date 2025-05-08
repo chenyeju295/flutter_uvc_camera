@@ -192,15 +192,15 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                     result.success(null)
                 }
                 
-                "startFrameStreaming" -> {
-                    mUVCCameraViewFactory.startFrameStreaming()
-                    result.success(null)
-                }
-                
-                "stopFrameStreaming" -> {
-                    mUVCCameraViewFactory.stopFrameStreaming()
-                    result.success(null)
-                }
+//                "startFrameStreaming" -> {
+//                    mUVCCameraViewFactory.startFrameStreaming()
+//                    result.success(null)
+//                }
+//
+//                "stopFrameStreaming" -> {
+//                    mUVCCameraViewFactory.stopFrameStreaming()
+//                    result.success(null)
+//                }
                 
                 "closeCamera" -> {
                     mUVCCameraViewFactory.closeCamera()
@@ -215,9 +215,9 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                     result.success(mUVCCameraViewFactory.getCurrentCameraRequestParameters())
                 }
                 
-                "getCameraInfo" -> {
-                    result.success(mUVCCameraViewFactory.getCameraInfo())
-                }
+//                "getCameraInfo" -> {
+//                    result.success(mUVCCameraViewFactory.getCameraInfo())
+//                }
                 
                 "updateResolution" -> {
                     mUVCCameraViewFactory.updateResolution(call.arguments)

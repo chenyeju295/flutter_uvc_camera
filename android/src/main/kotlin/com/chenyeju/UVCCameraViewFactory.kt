@@ -26,13 +26,13 @@ class UVCCameraViewFactory(private val plugin: FlutterUVCCameraPlugin, private v
 
     fun setFrameEventSink(eventSink: EventChannel.EventSink?) {
         frameEventSink = eventSink
-        cameraView.setFrameEventSink(eventSink)
+//        cameraView.setFrameEventSink(eventSink)
         Logger.i(TAG, "Frame event sink ${if (eventSink == null) "cleared" else "set"}")
     }
     
     fun setStreamEventSink(eventSink: EventChannel.EventSink?) {
         streamEventSink = eventSink
-        cameraView.setStreamEventSink(eventSink)
+//        cameraView.setStreamEventSink(eventSink)
         Logger.i(TAG, "Stream event sink ${if (eventSink == null) "cleared" else "set"}")
     }
 
@@ -64,13 +64,13 @@ class UVCCameraViewFactory(private val plugin: FlutterUVCCameraPlugin, private v
         cameraView.captureStreamStop()
     }
 
-    fun startFrameStreaming() {
-        cameraView.startFrameStreaming()
-    }
-
-    fun stopFrameStreaming() {
-        cameraView.stopFrameStreaming()
-    }
+//    fun startFrameStreaming() {
+//        cameraView.startFrameStreaming()
+//    }
+//
+//    fun stopFrameStreaming() {
+//        cameraView.stopFrameStreaming()
+//    }
 
     fun getAllPreviewSizes() = cameraView.getAllPreviewSizes()
     
@@ -84,9 +84,9 @@ class UVCCameraViewFactory(private val plugin: FlutterUVCCameraPlugin, private v
         cameraView.updateResolution(arguments)
     }
 
-    fun getCameraInfo(): Map<String, Any> {
-        return cameraView.getCameraInfo()
-    }
+//    fun getCameraInfo(): Map<String, Any> {
+//        return cameraView.getCameraInfo()
+//    }
 
     fun isCameraOpened(): Boolean {
         return try {

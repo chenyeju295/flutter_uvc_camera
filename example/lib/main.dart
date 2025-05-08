@@ -41,7 +41,7 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> _initializeCamera() async {
     _controller = CameraController();
-    
+
     // Listen for camera state changes
     _controller.onStateChanged.listen((state) {
       if (mounted) {
@@ -121,9 +121,10 @@ class _CameraPageState extends State<CameraPage> {
       context: context,
       builder: (context) => SettingsSheet(
         controller: _controller,
-        previewSizes: sizes.map((size) => 
-          PreviewSize(size['width'] as int, size['height'] as int)
-        ).toList(),
+        previewSizes: sizes
+            .map((size) =>
+                PreviewSize(size['width'] as int, size['height'] as int))
+            .toList(),
       ),
     );
   }
