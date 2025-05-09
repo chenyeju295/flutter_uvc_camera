@@ -49,8 +49,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class UVCCameraView(
     private val mContext: Context,
     private val mChannel: MethodChannel,
-    private val params: Any?
-) : PlatformView , PermissionResultListener, ICameraStateCallBack {
+    private val params: Any?,
+    private val videoStreamHandler: VideoStreamHandler,
+    private val recordingTimerManager: RecordingTimerManager
+) : PlatformView, PermissionResultListener, ICameraStateCallBack {
     private var mViewBinding = ActivityMainBinding.inflate(LayoutInflater.from(mContext))
     private var mActivity: Activity? = getActivityFromContext(mContext)
     private var mCameraView: IAspectRatio? = null
@@ -61,37 +63,39 @@ internal class UVCCameraView(
     private val mRequestPermission: AtomicBoolean by lazy {
         AtomicBoolean(false)
     }
-
+    
+    // New managers for better organization
+    private val stateManager = CameraStateManager(mChannel)
+    private val configManager = CameraConfigManager()
+    private val featuresManager = CameraFeaturesManager(mChannel)
+    
+    init {
+        configManager.updateFromParams(params)
+    }
 
     companion object {
         private const val TAG = "CameraView"
     }
 
-//    init{
-//        processingParams()
-//    }
-//
-//    private fun processingParams() {
-//        if (params is Map<*, *>) {
-//
-//        }
-//    }
-
     override fun getView(): View {
         return mViewBinding.root
     }
 
-
-    private fun setCameraERRORState(msg:String?=null){
-       mChannel.invokeMethod("CameraState","ERROR:$msg")
+    private fun setCameraERRORState(msg: String? = null) {
+        mChannel.invokeMethod("CameraState", "ERROR:$msg")
     }
 
-    fun initCamera(){
-        checkCameraPermission()
+    fun initCamera() {
+        if (!PermissionManager.requestPermissionsIfNeeded(mActivity)) {
+            stateManager.updateState(CameraStateManager.CameraState.ERROR, "Permission denied")
+            return
+        }
+        
+        stateManager.updateState(CameraStateManager.CameraState.CLOSED)
         val cameraView = AspectRatioTextureView(mContext)
         handleTextureView(cameraView)
         mCameraView = cameraView
-        cameraView.also { view->
+        cameraView.also { view ->
             mViewBinding.fragmentContainer
                 .apply {
                     removeAllViews()
@@ -101,13 +105,20 @@ internal class UVCCameraView(
     }
 
     fun openUVCCamera() {
-        checkCameraPermission()
+        if (!PermissionManager.hasRequiredPermissions(mContext)) {
+            PermissionManager.requestPermissionsIfNeeded(mActivity)
+            return
+        }
+        
+        stateManager.updateState(CameraStateManager.CameraState.OPENING)
         openCamera()
     }
 
     override fun dispose() {
         unRegisterMultiCamera()
         mViewBinding.fragmentContainer.removeAllViews()
+        stateManager.updateState(CameraStateManager.CameraState.CLOSED)
+        recordingTimerManager.release()
     }
 
     override fun onCameraState(
@@ -116,24 +127,18 @@ internal class UVCCameraView(
         msg: String?
     ) {
         when (code) {
-            ICameraStateCallBack.State.OPENED -> handleCameraOpened()
-            ICameraStateCallBack.State.CLOSED -> handleCameraClosed()
-            ICameraStateCallBack.State.ERROR -> handleCameraError(msg)
+            ICameraStateCallBack.State.OPENED -> {
+                stateManager.updateState(CameraStateManager.CameraState.OPENED)
+                setButtonCallback()
+            }
+            ICameraStateCallBack.State.CLOSED -> {
+                stateManager.updateState(CameraStateManager.CameraState.CLOSED)
+            }
+            ICameraStateCallBack.State.ERROR -> {
+                stateManager.updateState(CameraStateManager.CameraState.ERROR, msg)
+            }
         }
-        Logger.i(TAG, "------>CameraState: $code") ;
-    }
-
-    private fun handleCameraError(msg: String?) {
-        mChannel.invokeMethod("CameraState", "ERROR:$msg")
-    }
-
-    private fun handleCameraClosed() {
-        mChannel.invokeMethod("CameraState", "CLOSED")
-    }
-
-    private fun handleCameraOpened() {
-        mChannel.invokeMethod("CameraState", "OPENED")
-        setButtonCallback()
+        Logger.i(TAG, "------>CameraState: $code")
     }
 
     fun registerMultiCamera() {
@@ -210,7 +215,6 @@ internal class UVCCameraView(
             }
         })
         mCameraClient?.register()
-
     }
 
     fun unRegisterMultiCamera() {
@@ -222,6 +226,7 @@ internal class UVCCameraView(
         mCameraClient?.destroy()
         mCameraClient = null
     }
+    
     private fun handleTextureView(textureView: TextureView) {
         textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(
@@ -231,7 +236,6 @@ internal class UVCCameraView(
             ) {
                 registerMultiCamera()
                 checkCamera()
-
             }
 
             override fun onSurfaceTextureSizeChanged(
@@ -253,53 +257,18 @@ internal class UVCCameraView(
     }
 
     private fun checkCamera() {
-        if(mCameraClient?.getDeviceList()?.isEmpty() == true)
-        {
-            setCameraERRORState("未检测到设备")
+        if (mCameraClient?.getDeviceList()?.isEmpty() == true) {
+            stateManager.updateState(CameraStateManager.CameraState.ERROR, "No device detected")
         }
     }
 
     override fun onPermissionResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        // 处理权限结果
-        if (requestCode == 1230) {
-            val index = permissions.indexOf(Manifest.permission.CAMERA)
-            if (index >= 0 && grantResults[index] == PackageManager.PERMISSION_GRANTED) {
-                registerMultiCamera()
-            } else {
-                callFlutter("设备权限被拒绝" )
-                setCameraERRORState(msg = "设备权限被拒绝")
-            }
-
-
+        if (PermissionManager.isPermissionGranted(requestCode, permissions, grantResults)) {
+            registerMultiCamera()
+        } else {
+            callFlutter("Permission denied")
+            stateManager.updateState(CameraStateManager.CameraState.ERROR, "Permission denied")
         }
-    }
-    private fun checkCameraPermission() : Boolean {
-        if (mActivity == null) {
-            return false
-        }
-        val hasCameraPermission = PermissionChecker.checkSelfPermission(
-            mActivity!!,
-            Manifest.permission.CAMERA
-        )
-        val hasStoragePermission = PermissionChecker.checkSelfPermission(
-            mActivity!!,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        )
-
-
-        if (hasCameraPermission != PermissionChecker.PERMISSION_GRANTED
-            || hasStoragePermission != PermissionChecker.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                mActivity!!,
-                arrayOf(
-                    Manifest.permission.CAMERA,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                ),
-                1230
-            )
-            return false
-        }
-        return true
     }
 
     private fun callFlutter(msg: String, type: String? = null) {
@@ -309,32 +278,72 @@ internal class UVCCameraView(
         mChannel.invokeMethod("callFlutter", data)
     }
 
-
-     fun getAllPreviewSizes() : String? {
-         val previewSizes = getCurrentCamera()?.getAllPreviewSizes()
-         if (previewSizes.isNullOrEmpty()) {
-             callFlutter("Get camera preview size failed")
-             return null
-         }
-         return Gson().toJson(previewSizes)
-     }
+    fun getAllPreviewSizes(): String? {
+        val previewSizes = getCurrentCamera()?.getAllPreviewSizes()
+        if (previewSizes.isNullOrEmpty()) {
+            callFlutter("Get camera preview size failed")
+            return null
+        }
+        return Gson().toJson(previewSizes)
+    }
 
     fun updateResolution(arguments: Any?) {
         val map = arguments as HashMap<*, *>
         val width = map["width"] as Int
         val height = map["height"] as Int
+        configManager.updateResolution(width, height)
         getCurrentCamera()?.updateResolution(width, height)
     }
 
-   fun getCurrentCameraRequestParameters(): String? {
-      val size = getCurrentCamera()?.getCameraRequest()
-       if (size == null) {
-           callFlutter("Get camera info failed")
-           return null
-       }
-       return Gson().toJson(size)
+    fun getCurrentCameraRequestParameters(): String? {
+        val size = getCurrentCamera()?.getCameraRequest()
+        if (size == null) {
+            callFlutter("Get camera info failed")
+            return null
+        }
+        return Gson().toJson(size)
     }
-
+    
+    // New methods for camera features
+    fun setCameraFeature(feature: String, value: Int): Boolean {
+        val camera = getCurrentCamera()
+        if (camera !is CameraUVC) {
+            callFlutter("Camera not available or not UVC type")
+            return false
+        }
+        
+        return featuresManager.applyCameraFeature(camera, feature, value)
+    }
+    
+    fun resetCameraFeature(feature: String): Boolean {
+        val camera = getCurrentCamera()
+        if (camera !is CameraUVC) {
+            callFlutter("Camera not available or not UVC type")
+            return false
+        }
+        
+        return featuresManager.resetCameraFeature(camera, feature)
+    }
+    
+    fun getCameraFeature(feature: String): Int? {
+        val camera = getCurrentCamera()
+        if (camera !is CameraUVC) {
+            callFlutter("Camera not available or not UVC type")
+            return null
+        }
+        
+        return featuresManager.getCameraFeature(camera, feature)
+    }
+    
+    fun getAllCameraFeatures(): String? {
+        val camera = getCurrentCamera()
+        if (camera !is CameraUVC) {
+            callFlutter("Camera not available or not UVC type")
+            return null
+        }
+        
+        return featuresManager.getAllCameraFeatures(camera)
+    }
 
     private fun getActivityFromContext(context: Context?): Activity? {
         if (context == null) {
@@ -360,7 +369,6 @@ internal class UVCCameraView(
         return null
     }
 
-
     private fun getCurrentCamera(): MultiCameraClient.ICamera? {
         return try {
             mCurrentCamera?.get(2, TimeUnit.SECONDS)
@@ -369,27 +377,29 @@ internal class UVCCameraView(
             null
         }
     }
+    
     fun requestPermission(device: UsbDevice?) {
         mRequestPermission.set(true)
         mCameraClient?.requestPermission(device)
     }
 
-
     fun generateCamera(ctx: Context, device: UsbDevice): MultiCameraClient.ICamera {
-        return CameraUVC(ctx, device,params)
+        return CameraUVC(ctx, device, configManager.getCameraParams())
     }
 
     fun getDefaultCamera(): UsbDevice? = null
+    
     fun getDefaultEffect() = getCurrentCamera()?.getDefaultEffect()
 
     private fun captureImage(callBack: ICaptureCallBack, savePath: String? = null) {
         getCurrentCamera()?.captureImage(callBack, savePath)
     }
 
-     fun captureVideoStop() {
+    fun captureVideoStop() {
         getCurrentCamera()?.captureVideoStop()
     }
-    private fun captureVideoStart(callBack: ICaptureCallBack, path: String ?= null, durationInSec: Long = 0L) {
+    
+    private fun captureVideoStart(callBack: ICaptureCallBack, path: String? = null, durationInSec: Long = 0L) {
         getCurrentCamera()?.captureVideoStart(callBack, path, durationInSec)
     }
 
@@ -412,12 +422,13 @@ internal class UVCCameraView(
                 null
             }
         }.apply {
-            getCurrentCamera()?.openCamera(this, getCameraRequest())
+            getCurrentCamera()?.openCamera(this, configManager.buildCameraRequest())
             getCurrentCamera()?.setCameraStateCallBack(this@UVCCameraView)
         }
     }
 
     fun closeCamera() {
+        stateManager.updateState(CameraStateManager.CameraState.CLOSING)
         getCurrentCamera()?.closeCamera()
     }
 
@@ -426,7 +437,7 @@ internal class UVCCameraView(
     }
 
     private fun getViewLayoutParams(viewGroup: ViewGroup): ViewGroup.LayoutParams {
-        return when(viewGroup) {
+        return when (viewGroup) {
             is FrameLayout -> {
                 FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
@@ -446,8 +457,8 @@ internal class UVCCameraView(
                 RelativeLayout.LayoutParams(
                     RelativeLayout.LayoutParams.MATCH_PARENT,
                     RelativeLayout.LayoutParams.MATCH_PARENT
-                ).apply{
-                    when(getGravity()) {
+                ).apply {
+                    when (getGravity()) {
                         Gravity.TOP -> {
                             addRule(RelativeLayout.ALIGN_PARENT_TOP, RelativeLayout.TRUE)
                         }
@@ -461,32 +472,17 @@ internal class UVCCameraView(
                     }
                 }
             }
-            else -> throw IllegalArgumentException("Unsupported container view, " +
-                    "you can use FrameLayout or LinearLayout or RelativeLayout")
+            else -> throw IllegalArgumentException(
+                "Unsupported container view, " +
+                        "you can use FrameLayout or LinearLayout or RelativeLayout"
+            )
         }
     }
 
-
     private fun getGravity() = Gravity.CENTER
 
-
-    private fun getCameraRequest(): CameraRequest {
-        return CameraRequest.Builder()
-            .setPreviewWidth(640)
-            .setPreviewHeight(480)
-            .setRenderMode(CameraRequest.RenderMode.OPENGL)
-            .setDefaultRotateType(RotateType.ANGLE_0)
-            .setAudioSource(CameraRequest.AudioSource.SOURCE_SYS_MIC)
-            .setAspectRatioShow(true)
-            .setCaptureRawImage(false)
-            .setRawPreviewData(false)
-            .create()
-    }
-
-
-
-    private fun setButtonCallback(){
-        getCurrentCamera()?.let {camera->
+    private fun setButtonCallback() {
+        getCurrentCamera()?.let { camera ->
             if (camera !is CameraUVC) {
                 return@let null
             }
@@ -499,125 +495,125 @@ internal class UVCCameraView(
                             }
 
                             override fun onError(error: String) {
-                                callFlutter("拍照失败：$error","onError")
+                                callFlutter("Failed to take picture: $error", "onError")
                             }
                         }
                     )
                 }
-                Logger.i(TAG,"点击了设备按钮：button=$button state=$state")
+                Logger.i(TAG, "Device button clicked: button=$button state=$state")
             }
             )
         }
-
-
-
     }
+    
     /**
      * Start capture H264 & AAC only
      */
-     fun captureStreamStart() {
+    fun captureStreamStart() {
+        if (!stateManager.checkStateForOperation("stream")) {
+            callFlutter("Camera not ready for streaming")
+            return
+        }
+        
         setEncodeDataCallBack()
         getCurrentCamera()?.captureStreamStart()
     }
 
-     fun captureStreamStop() {
+    fun captureStreamStop() {
         getCurrentCamera()?.captureStreamStop()
+        videoStreamHandler.sendState("STREAM_STOPPED")
     }
 
     private fun setEncodeDataCallBack() {
-        getCurrentCamera()?.setEncodeDataCallBack(object :  IEncodeDataCallBack {
+        getCurrentCamera()?.setEncodeDataCallBack(object : IEncodeDataCallBack {
             override fun onEncodeData(
                 type: IEncodeDataCallBack.DataType,
                 buffer: ByteBuffer,
                 offset: Int,
                 size: Int,
                 timestamp: Long
-            ) { val data = ByteArray(size)
-                buffer.get(data, offset, size)
-                val args = hashMapOf<String, Any>(
-                    "type" to type.name,
-                    "data" to data,
-                    "timestamp" to timestamp
+            ) {
+                videoStreamHandler.onVideoFrame(
+                    type.name, 
+                    buffer,
+                    offset,
+                    size,
+                    timestamp
                 )
-                Handler(Looper.getMainLooper()).post {
-                    mChannel.invokeMethod("onEncodeData", args)
-                }}
+            }
         })
     }
 
-
-    private fun isCameraOpened() = getCurrentCamera()?.isCameraOpened()  ?: false
+    private fun isCameraOpened() = stateManager.isOpened()
 
     fun takePicture(callback: UVCStringCallback) {
-
         if (!isCameraOpened()) {
-            callFlutter("摄像头未打开")
-            setCameraERRORState("设备未打开")
+            callback.onError("Camera not open")
             return
         }
-        captureImage( object : ICaptureCallBack {
+        
+        captureImage(object : ICaptureCallBack {
             override fun onBegin() {
-                callFlutter("开始拍照")
+                callFlutter("Starting capture")
             }
 
             override fun onComplete(path: String?) {
                 if (path != null) {
                     callback.onSuccess(path)
-                    MediaScannerConnection.scanFile(view.context, arrayOf(path), null) {
-                            mPath, uri ->
-                        // 文件已经被扫描到媒体数据库
+                    MediaScannerConnection.scanFile(view.context, arrayOf(path), null) { mPath, uri ->
+                        // File scanned into media database
                         println("Media scan completed for file: $mPath with uri: $uri")
                     }
                 } else {
-                    callback.onError("拍照失败，未能保存图片")
+                    callback.onError("Failed to save image")
                 }
             }
+            
             override fun onError(error: String?) {
-                callback.onError(error ?: "未知错误")
+                callback.onError(error ?: "Unknown error")
             }
-
         })
     }
 
-    fun  captureVideo(callback: UVCStringCallback) {
+    fun captureVideo(callback: UVCStringCallback) {
         if (isCapturingVideoOrAudio) {
+            recordingTimerManager.stopRecording()
             captureVideoStop()
             return
         }
+        
         if (!isCameraOpened()) {
-            callFlutter("摄像头未打开")
-            setCameraERRORState("设备未打开")
+            callback.onError("Camera not open")
             return
         }
 
         captureVideoStart(object : ICaptureCallBack {
             override fun onBegin() {
                 isCapturingVideoOrAudio = true
-                callFlutter("开始录像")
+                callFlutter("Started video recording")
+                recordingTimerManager.startRecording()
             }
 
             override fun onError(error: String?) {
                 isCapturingVideoOrAudio = false
-                callback.onError(error ?: "captureVideo error")
+                recordingTimerManager.stopRecording()
+                callback.onError(error ?: "Video capture error")
             }
 
             override fun onComplete(path: String?) {
                 if (path != null) {
                     callback.onSuccess(path)
-                    MediaScannerConnection.scanFile(view.context, arrayOf(path), null) {
-                            mPath, uri ->
+                    MediaScannerConnection.scanFile(view.context, arrayOf(path), null) { mPath, uri ->
                         println("Media scan completed for file: $mPath with uri: $uri")
                     }
                     isCapturingVideoOrAudio = false
+                    recordingTimerManager.stopRecording()
                 } else {
                     isCapturingVideoOrAudio = false
-                    callback.onError("未能保存视频")
-
+                    recordingTimerManager.stopRecording()
+                    callback.onError("Failed to save video")
                 }
             }
-
         })
-
     }
-
 }
