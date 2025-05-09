@@ -3,6 +3,8 @@ package com.chenyeju
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 import java.nio.ByteBuffer
+import android.os.Handler
+import android.os.Looper
 
 /**
  * 处理视频流数据的EventChannel处理类
@@ -19,6 +21,8 @@ class VideoStreamHandler : EventChannel.StreamHandler {
     var frameRateLimit = 30
     var frameSizeLimit = 0
     private var lastFrameTime = 0L
+    
+    private val mainHandler = Handler(Looper.getMainLooper())
     
     override fun onListen(arguments: Any?, events: EventSink?) {
         eventSink = events
@@ -59,21 +63,23 @@ class VideoStreamHandler : EventChannel.StreamHandler {
             lastFpsUpdateTime = currentTime
         }
         
-        try {
-            // 创建数据副本以避免并发问题
-            val data = ByteArray(size)
-            buffer.get(data, offset, size)
-            
-            val event = HashMap<String, Any>()
-            event["type"] = type
-            event["data"] = data
-            event["timestamp"] = timestamp
-            event["size"] = size
-            event["fps"] = currentFps
-            
-            sink.success(event)
-        } catch (e: Exception) {
-            sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
+        mainHandler.post {
+            try {
+                // 创建数据副本以避免并发问题
+                val data = ByteArray(size)
+                buffer.get(data, offset, size)
+                
+                val event = HashMap<String, Any>()
+                event["type"] = type
+                event["data"] = data
+                event["timestamp"] = timestamp
+                event["size"] = size
+                event["fps"] = currentFps
+                
+                sink.success(event)
+            } catch (e: Exception) {
+                sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
+            }
         }
     }
     

@@ -105,25 +105,29 @@ class UVCCameraController {
     try {
       final videoEvent = VideoStreamEvent.fromMap(event);
 
-      if (videoEvent is VideoFrameEvent) {
-        if (videoEvent.type == 'H264' && onVideoFrameCallback != null) {
-          onVideoFrameCallback!(videoEvent);
-        } else if (videoEvent.type == 'AAC' && onAudioFrameCallback != null) {
-          onAudioFrameCallback!(videoEvent);
-        }
-      } else if (videoEvent is StateEvent) {
-        if (videoEvent.state == 'RECORDING_TIME') {
-          final recordingEvent = RecordingTimeEvent.fromStateEvent(videoEvent);
-          _currentRecordingTimeMs = recordingEvent.elapsedMillis;
-          _currentRecordingTimeFormatted = recordingEvent.formattedTime;
-
-          if (onRecordingTimeCallback != null) {
-            onRecordingTimeCallback!(recordingEvent);
+      // Use microtask to avoid blocking the main thread
+      Future.microtask(() {
+        if (videoEvent is VideoFrameEvent) {
+          if (videoEvent.type == 'H264' && onVideoFrameCallback != null) {
+            onVideoFrameCallback!(videoEvent);
+          } else if (videoEvent.type == 'AAC' && onAudioFrameCallback != null) {
+            onAudioFrameCallback!(videoEvent);
           }
-        } else if (onStreamStateCallback != null) {
-          onStreamStateCallback!(videoEvent);
+        } else if (videoEvent is StateEvent) {
+          if (videoEvent.state == 'RECORDING_TIME') {
+            final recordingEvent =
+                RecordingTimeEvent.fromStateEvent(videoEvent);
+            _currentRecordingTimeMs = recordingEvent.elapsedMillis;
+            _currentRecordingTimeFormatted = recordingEvent.formattedTime;
+
+            if (onRecordingTimeCallback != null) {
+              onRecordingTimeCallback!(recordingEvent);
+            }
+          } else if (onStreamStateCallback != null) {
+            onStreamStateCallback!(videoEvent);
+          }
         }
-      }
+      });
     } catch (e) {
       debugPrint("Error handling video stream event: $e");
     }
@@ -161,14 +165,28 @@ class UVCCameraController {
       case "CameraState":
         _setCameraState(call.arguments.toString());
         break;
-
-      // 不再需要处理onEncodeData，因为我们使用EventChannel
     }
   }
 
-  /// Initialize camera
+  /// Initialize camera with better timing
   Future<void> initializeCamera() async {
-    await _methodChannel?.invokeMethod('initializeCamera');
+    // Give some time for the platform view to initialize
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    try {
+      await _methodChannel?.invokeMethod('initializeCamera');
+      debugPrint("Camera initialized successfully");
+    } catch (e) {
+      debugPrint("Error initializing camera: $e");
+      // Retry once if failed
+      await Future.delayed(const Duration(milliseconds: 300));
+      try {
+        await _methodChannel?.invokeMethod('initializeCamera');
+        debugPrint("Camera initialized successfully on retry");
+      } catch (e) {
+        debugPrint("Error initializing camera on retry: $e");
+      }
+    }
   }
 
   /// Open UVC camera

@@ -29,18 +29,18 @@ class _StreamsDemoState extends State<StreamsDemo> {
   void initState() {
     super.initState();
     cameraController = UVCCameraController();
-    setupListeners();
-  }
 
-  void setupListeners() {
+    // Set up callbacks BEFORE attempting to open the camera
     cameraController?.msgCallback = (state) {
       showCustomToast(state);
     };
 
     cameraController?.cameraStateCallback = (state) {
-      setState(() {
-        isCameraOpen = state == UVCCameraState.opened;
-      });
+      if (mounted) {
+        setState(() {
+          isCameraOpen = state == UVCCameraState.opened;
+        });
+      }
     };
 
     cameraController?.onVideoFrameCallback = (frame) {
@@ -142,103 +142,87 @@ class _StreamsDemoState extends State<StreamsDemo> {
       ),
       body: Column(
         children: [
-          // Camera preview
-          if (cameraController != null && isCameraOpen)
-            Container(
-              margin: const EdgeInsets.all(16),
-              height: 250,
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, 3),
+          Container(
+            margin: const EdgeInsets.all(16),
+            height: 250,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 5,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: UVCCameraView(
+                    cameraController: cameraController!,
+                    params: const UVCCameraViewParamsEntity(frameFormat: 0),
+                    width: 300,
+                    height: 300,
+                    autoDispose: false,
                   ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: UVCCameraView(
-                      cameraController: cameraController!,
-                      params: const UVCCameraViewParamsEntity(frameFormat: 0),
-                      width: MediaQuery.of(context).size.width - 32,
-                      height: 250,
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '$_currentFps FPS',
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
+                ),
+                if (isStreaming)
                   Positioned(
                     top: 10,
-                    right: 10,
+                    left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.black54,
+                        color: Colors.red,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(
-                        '$_currentFps FPS',
-                        style: const TextStyle(color: Colors.white),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'LIVE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  if (isStreaming)
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'LIVE',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            )
-          else
-            Container(
-              margin: const EdgeInsets.all(16),
-              height: 250,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade900,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Center(
-                child: Text(
-                  'Camera not open',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
+              ],
             ),
+          ),
 
           // Camera open/close buttons
           Padding(
