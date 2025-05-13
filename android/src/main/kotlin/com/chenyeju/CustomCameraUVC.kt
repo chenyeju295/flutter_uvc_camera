@@ -116,7 +116,6 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
             postStateEvent(ICameraStateCallBack.State.ERROR, "Has no CAMERA permission.")
             Logger.e(TAG,"open camera failed, need Manifest.permission.CAMERA permission when targetSdk>=28")
             return
-
         }
         if (mCtrlBlock == null) {
             closeCamera()

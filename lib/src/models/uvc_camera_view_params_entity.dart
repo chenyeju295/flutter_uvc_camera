@@ -1,8 +1,6 @@
 part of flutter_uvc_camera;
 
 /// 自定义参数 可空  Custom parameters can be empty
-/// @deprecated Use CameraConfig instead
-@Deprecated('Use CameraConfig instead')
 class UVCCameraViewParamsEntity {
   /**
    *  if give custom minFps or maxFps or unsupported preview size
@@ -35,16 +33,5 @@ class UVCCameraViewParamsEntity {
       "frameFormat": frameFormat,
       "bandwidthFactor": bandwidthFactor
     };
-  }
-
-  /// Convert to the new CameraConfig
-  CameraConfig toCameraConfig() {
-    return CameraConfig(
-      minFps: minFps ?? 10,
-      maxFps: maxFps ?? 60,
-      frameFormat:
-          frameFormat == 0 ? FrameFormat.yuyv.value : FrameFormat.mjpeg.value,
-      bandwidthFactor: bandwidthFactor ?? 1.0,
-    );
   }
 }

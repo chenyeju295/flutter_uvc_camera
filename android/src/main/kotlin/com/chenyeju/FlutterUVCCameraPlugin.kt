@@ -5,93 +5,34 @@ import android.os.Build
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-import com.jiangdg.ausbc.utils.Logger
 
 class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     private val channelName = "flutter_uvc_camera/channel"
-    private val viewName = "flutter_uvc_camera"
-    private val frameEventChannelName = "flutter_uvc_camera/frame_events"
-    private val streamEventChannelName = "flutter_uvc_camera/stream_events"
-    
+    private val viewName = "uvc_camera_view"
     private var channel: MethodChannel? = null
-    private var frameEventChannel: EventChannel? = null
-    private var streamEventChannel: EventChannel? = null
-    
     private lateinit var mUVCCameraViewFactory: UVCCameraViewFactory
     private var activity: Activity? = null
     private var permissionResultListener: PermissionResultListener? = null
     private var mActivityPluginBinding: ActivityPluginBinding? = null
     private var requestPermissionsResultListener: io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener? =
         null
-    
-    companion object {
-        private const val TAG = "FlutterUVCCameraPlugin"
-        private var debug = false
-    }
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        // 设置方法通道
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, channelName)
         channel!!.setMethodCallHandler(this)
-        
-        // 设置帧事件通道
-        frameEventChannel = EventChannel(flutterPluginBinding.binaryMessenger, frameEventChannelName)
-        
-        // 设置流事件通道
-        streamEventChannel = EventChannel(flutterPluginBinding.binaryMessenger, streamEventChannelName)
-        
-        // 创建视图工厂
         mUVCCameraViewFactory = UVCCameraViewFactory(this, channel!!)
         flutterPluginBinding.platformViewRegistry.registerViewFactory(viewName, mUVCCameraViewFactory)
-        
-        // 设置事件流处理器
-        setupEventHandlers()
-        
-        Logger.i(TAG, "Plugin attached to engine")
     }
-    
-    private fun setupEventHandlers() {
-        frameEventChannel?.setStreamHandler(object : EventChannel.StreamHandler {
-            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                mUVCCameraViewFactory.setFrameEventSink(events)
-                Logger.i(TAG, "Frame event stream handler connected")
-            }
-            
-            override fun onCancel(arguments: Any?) {
-                mUVCCameraViewFactory.setFrameEventSink(null)
-                Logger.i(TAG, "Frame event stream handler disconnected")
-            }
-        })
-        
-        streamEventChannel?.setStreamHandler(object : EventChannel.StreamHandler {
-            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                mUVCCameraViewFactory.setStreamEventSink(events)
-                Logger.i(TAG, "Stream event handler connected")
-            }
-            
-            override fun onCancel(arguments: Any?) {
-                mUVCCameraViewFactory.setStreamEventSink(null)
-                Logger.i(TAG, "Stream event handler disconnected")
-            }
-        })
-    }
+
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel?.setMethodCallHandler(null)
         channel = null
-        
-        frameEventChannel?.setStreamHandler(null)
-        frameEventChannel = null
-        
-        streamEventChannel?.setStreamHandler(null)
-        streamEventChannel = null
-        
-        Logger.i(TAG, "Plugin detached from engine")
     }
+
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
@@ -102,20 +43,18 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 true
             }
         binding.addRequestPermissionsResultListener(requestPermissionsResultListener!!)
-        Logger.i(TAG, "Plugin attached to activity")
     }
 
     fun setPermissionResultListener(listener: PermissionResultListener) {
         this.permissionResultListener = listener
-        Logger.i(TAG, "Permission result listener set")
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        Logger.i(TAG, "Plugin detached from activity for config changes")
+
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        Logger.i(TAG, "Plugin reattached to activity for config changes")
+
     }
 
     override fun onDetachedFromActivity() {
@@ -125,127 +64,76 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             requestPermissionsResultListener = null
             mActivityPluginBinding = null
         }
-        Logger.i(TAG, "Plugin detached from activity")
     }
 
+
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        try {
-            when (call.method) {
-                "initCamera" -> {
-                    mUVCCameraViewFactory.initCamera()
-                    result.success(null)
-                }
-                
-                "openUVCCamera" -> {
-                    mUVCCameraViewFactory.openUVCCamera()
-                    result.success(null)
-                }
-                
-                "takePicture" -> {
-                    val savePath = call.argument<String>("path")
-                    mUVCCameraViewFactory.takePicture(
-                        object : UVCStringCallback {
-                            override fun onSuccess(path: String) {
-                                result.success(path)
-                            }
-                            override fun onError(error: String) {
-                                result.error("CAMERA_ERROR", error, null)
-                            }
-                        }
-                    )
-                }
-                
-                "captureVideo" -> {
-                    val savePath = call.argument<String>("path")
-                    mUVCCameraViewFactory.captureVideo(
-                        object : UVCStringCallback {
-                            override fun onSuccess(path: String) {
-                                result.success(path)
-                            }
-                            override fun onError(error: String) {
-                                result.error("CAMERA_ERROR", error, null)
-                            }
-                        }
-                    )
-                }
-                
-                "captureVideoStop" -> {
-                    mUVCCameraViewFactory.captureVideoStop(
-                        object : UVCStringCallback {
-                            override fun onSuccess(path: String) {
-                                result.success(path)
-                            }
-                            override fun onError(error: String) {
-                                result.error("CAMERA_ERROR", error, null)
-                            }
-                        }
-                    )
-                }
-                
-                "captureStreamStart" -> {
-                    mUVCCameraViewFactory.captureStreamStart()
-                    result.success(null)
-                }
-                
-                "captureStreamStop" -> {
-                    mUVCCameraViewFactory.captureStreamStop()
-                    result.success(null)
-                }
-                
-//                "startFrameStreaming" -> {
-//                    mUVCCameraViewFactory.startFrameStreaming()
-//                    result.success(null)
-//                }
-//
-//                "stopFrameStreaming" -> {
-//                    mUVCCameraViewFactory.stopFrameStreaming()
-//                    result.success(null)
-//                }
-                
-                "closeCamera" -> {
-                    mUVCCameraViewFactory.closeCamera()
-                    result.success(null)
-                }
-                
-                "getAllPreviewSizes" -> {
-                    result.success(mUVCCameraViewFactory.getAllPreviewSizes())
-                }
-                
-                "getCurrentCameraRequestParameters" -> {
-                    result.success(mUVCCameraViewFactory.getCurrentCameraRequestParameters())
-                }
-                
-//                "getCameraInfo" -> {
-//                    result.success(mUVCCameraViewFactory.getCameraInfo())
-//                }
-                
-                "updateResolution" -> {
-                    mUVCCameraViewFactory.updateResolution(call.arguments)
-                    result.success(null)
-                }
-                
-                "isCameraOpened" -> {
-                    result.success(mUVCCameraViewFactory.isCameraOpened())
-                }
-                
-                "setDebugMode" -> {
-                    val enabled = call.argument<Boolean>("enabled") ?: false
-                    debug = enabled
-                    Logger.i(TAG, "Debug mode set to $enabled")
-                    result.success(null)
-                }
-                
-                "getPlatformVersion" -> {
-                    result.success("Android " + Build.VERSION.RELEASE)
-                }
-                
-                else -> {
-                    result.notImplemented()
-                }
+        when (call.method) {
+            "initializeCamera" -> {
+                mUVCCameraViewFactory.initCamera()
             }
-        } catch (e: Exception) {
-            Logger.e(TAG, "Error handling method call: ${call.method}", e)
-            result.error("EXCEPTION", e.message, e.stackTraceToString())
+
+            "openUVCCamera" -> {
+                mUVCCameraViewFactory.openUVCCamera()
+            }
+
+            "takePicture" -> {
+                mUVCCameraViewFactory.takePicture(
+                    object : UVCStringCallback {
+                        override fun onSuccess(path: String) {
+                            result.success(path)
+                        }
+                        override fun onError(error: String) {
+                            result.error("error", error, error)
+                        }
+                    }
+                )
+            }
+
+            "captureVideo" -> {
+                mUVCCameraViewFactory.captureVideo(
+                    object : UVCStringCallback {
+                        override fun onSuccess(path: String) {
+                            result.success(path)
+                        }
+                        override fun onError(error: String) {
+                            result.error("error", error, error)
+                        }
+                    }
+                )
+            }
+            "captureStreamStart" -> {
+                mUVCCameraViewFactory.captureStreamStart()
+            }
+            "captureStreamStop" -> {
+                mUVCCameraViewFactory.captureStreamStop()
+            }
+
+            "closeCamera" -> {
+                mUVCCameraViewFactory.closeCamera()
+            }
+
+
+            "getAllPreviewSizes" -> {
+               result.success(mUVCCameraViewFactory.getAllPreviewSizes())
+            }
+
+            "getCurrentCameraRequestParameters" -> {
+                result.success(mUVCCameraViewFactory.getCurrentCameraRequestParameters())
+            }
+
+            "updateResolution" -> {
+                mUVCCameraViewFactory.updateResolution(call.arguments())
+            }
+
+            "getPlatformVersion" -> {
+                result.success("Android " + Build.VERSION.RELEASE)
+            }
+
+            else -> {
+                result.notImplemented()
+            }
         }
+
     }
 }

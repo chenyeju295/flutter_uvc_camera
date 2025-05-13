@@ -62,6 +62,7 @@ internal class UVCCameraView(
         AtomicBoolean(false)
     }
 
+
     companion object {
         private const val TAG = "CameraView"
     }
@@ -134,7 +135,6 @@ internal class UVCCameraView(
         mChannel.invokeMethod("CameraState", "OPENED")
         setButtonCallback()
     }
-
 
     fun registerMultiCamera() {
         mCameraClient = MultiCameraClient(view.context, object : IDeviceConnectCallBack {
@@ -386,6 +386,9 @@ internal class UVCCameraView(
         getCurrentCamera()?.captureImage(callBack, savePath)
     }
 
+     fun captureVideoStop() {
+        getCurrentCamera()?.captureVideoStop()
+    }
     private fun captureVideoStart(callBack: ICaptureCallBack, path: String ?= null, durationInSec: Long = 0L) {
         getCurrentCamera()?.captureVideoStart(callBack, path, durationInSec)
     }
@@ -522,42 +525,28 @@ internal class UVCCameraView(
     }
 
     private fun setEncodeDataCallBack() {
-        getCurrentCamera()?.setEncodeDataCallBack(object : IEncodeDataCallBack {
+        getCurrentCamera()?.setEncodeDataCallBack(object :  IEncodeDataCallBack {
             override fun onEncodeData(
                 type: IEncodeDataCallBack.DataType,
                 buffer: ByteBuffer,
                 offset: Int,
                 size: Int,
                 timestamp: Long
-            ) {
-                val encodeData = HashMap<String, Any>()
-                if (buffer == null || type == null) {
-                    return
-                }
-                when (type) {
-                    IEncodeDataCallBack.DataType.AAC -> {
-                        encodeData["type"] = "aac"
-                        encodeData["data"] = buffer
-                    }
-                    IEncodeDataCallBack.DataType.H264_KEY -> {
-                        encodeData["type"] = "h264Key"
-                        encodeData["data"] = buffer
-                    }
-                    IEncodeDataCallBack.DataType.H264 -> {
-                        encodeData["type"] = "h264"
-                        encodeData["data"] = buffer
-                    }
-                    IEncodeDataCallBack.DataType.H264_SPS -> {
-                        encodeData["type"] = "h264Sps"
-                        encodeData["data"] = buffer
-                    }
-                }
-            }
+            ) { val data = ByteArray(size)
+                buffer.get(data, offset, size)
+                val args = hashMapOf<String, Any>(
+                    "type" to type.name,
+                    "data" to data,
+                    "timestamp" to timestamp
+                )
+                Handler(Looper.getMainLooper()).post {
+                    mChannel.invokeMethod("onEncodeData", args)
+                }}
         })
     }
 
 
-    fun isCameraOpened() = getCurrentCamera()?.isCameraOpened() ?: false
+    private fun isCameraOpened() = getCurrentCamera()?.isCameraOpened()  ?: false
 
     fun takePicture(callback: UVCStringCallback) {
 
@@ -592,14 +581,7 @@ internal class UVCCameraView(
 
     fun  captureVideo(callback: UVCStringCallback) {
         if (isCapturingVideoOrAudio) {
-            captureVideoStop(object : UVCStringCallback {
-                override fun onSuccess(path: String) {
-                    callback.onSuccess(path)
-                }
-                override fun onError(error: String) {
-                    callback.onError("停止录制失败: $error")
-                }
-            })
+            captureVideoStop()
             return
         }
         if (!isCameraOpened()) {
@@ -637,111 +619,5 @@ internal class UVCCameraView(
         })
 
     }
-
-    fun captureVideoStop(callback: UVCStringCallback) {
-        try {
-            getCurrentCamera()?.captureVideoStop()
-        } catch (e: Exception) {
-            Logger.e(TAG, "Error stopping video recording", e)
-            callback.onError("Failed to stop recording: ${e.localizedMessage}")
-        }
-    }
-
-//    fun getCameraInfo(): Map<String, Any> {
-//        val camera = getCurrentCamera() as? CameraUVC
-//        val infoMap = mutableMapOf<String, Any>()
-//
-//        if (camera != null) {
-//            infoMap["isOpened"] = camera.isCameraOpened
-//
-//            camera.getPreviewSize()?.let {
-//                infoMap["previewWidth"] = it.width
-//                infoMap["previewHeight"] = it.height
-//            }
-//
-//            val fpsRange = camera.getFpsRange()
-//            if (fpsRange != null) {
-//                infoMap["minFps"] = fpsRange.first
-//                infoMap["maxFps"] = fpsRange.second
-//            } else {
-//                infoMap["minFps"] = 0
-//                infoMap["maxFps"] = 0
-//            }
-//
-//            infoMap["frameFormat"] = camera.getCurrentFrameFormat() ?: 0
-//            infoMap["deviceName"] = camera.device.deviceName ?: "Unknown"
-//            infoMap["usbInfo"] = "${camera.device.vendorId}:${camera.device.productId}"
-//        } else {
-//            infoMap["isOpened"] = false
-//        }
-//
-//        return infoMap
-//    }
-//
-//    // startFrameStreaming 方法
-//    fun startFrameStreaming() {
-//        synchronized(mStreamingLock) {
-//            if (mStreamingActive) {
-//                Logger.i(TAG, "Frame streaming already active")
-//                return
-//            }
-//            mStreamingActive = true
-//            mStreamingThread = Thread {
-//                var retryCount = 0
-//                while (mStreamingActive) {
-//                    try {
-//                        getCurrentCamera()?.let { camera ->
-//                            if (camera is CameraUVC) {
-//                                val frameData = camera.requestFrame()
-//                                if (frameData != null) {
-//                                    val frameMap = HashMap<String, Any>()
-//                                    frameMap["width"] = frameData.width
-//                                    frameMap["height"] = frameData.height
-//                                    frameMap["format"] = frameData.format
-//                                    frameMap["timestamp"] = System.currentTimeMillis()
-//                                    frameMap["data"] = frameData.byteArray
-//
-//                                    // 使用sendFrameData方法
-//                                    sendFrameData(frameMap)
-//
-//                                    retryCount = 0
-//                                } else {
-//                                    retryCount++
-//                                    if (retryCount > MAX_STREAMING_RETRIES) {
-//                                        Logger.e(TAG, "Too many failed frame requests, stopping streaming")
-//                                        mStreamingActive = false
-//                                    }
-//                                }
-//                            }
-//                        }
-//                        Thread.sleep(STREAM_INTERVAL_MS.toLong())
-//                    } catch (e: Exception) {
-//                        Logger.e(TAG, "Error in frame streaming", e)
-//                        if (e is InterruptedException) {
-//                            break
-//                        }
-//                    }
-//                }
-//                Logger.i(TAG, "Frame streaming thread stopped")
-//            }
-//            mStreamingThread?.start()
-//            Logger.i(TAG, "Frame streaming started")
-//        }
-//    }
-//
-//    // stopFrameStreaming 方法
-//    fun stopFrameStreaming() {
-//        synchronized(mStreamingLock) {
-//            mStreamingActive = false
-//            mStreamingThread?.interrupt()
-//            try {
-//                mStreamingThread?.join(500)
-//            } catch (e: InterruptedException) {
-//                Logger.e(TAG, "Interrupted while stopping frame streaming", e)
-//            }
-//            mStreamingThread = null
-//            Logger.i(TAG, "Frame streaming stopped")
-//        }
-//    }
 
 }

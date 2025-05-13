@@ -14,55 +14,26 @@ class _CameraTestState extends State<CameraTest> {
   int selectIndex = 0;
   List<String> images = ['', '', '', '', '', '', ''];
   String errText = '';
-  CameraController? cameraController;
-  bool _isInitialized = false;
-  
+  UVCCameraController? cameraController;
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
-  }
-  
-  Future<void> _initializeCamera() async {
-    cameraController = CameraController();
-    
-    // 监听错误和状态变化
-    cameraController?.onError.listen((error) {
-      setState(() => errText = error);
-      showCustomToast("Error: $error");
-    });
-    
-    cameraController?.onStateChanged.listen((state) {
-      setState(() {
-        _isInitialized = state == CameraState.opened;
-      });
-      showCustomToast("Camera state: $state");
-    });
-    
-    try {
-      await cameraController?.initialize();
-    } catch (e) {
-      setState(() => errText = e.toString());
-    }
+    cameraController = UVCCameraController();
+    cameraController?.msgCallback = (state) {
+      showCustomToast(state);
+    };
   }
 
   void showCustomToast(String message) {
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        duration: const Duration(seconds: 1),
+        duration: const Duration(seconds: 1), // 设置持续时间
       ),
     );
   }
 
   String videoPath = '';
-
-  @override
-  void dispose() {
-    cameraController?.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,91 +45,61 @@ class _CameraTestState extends State<CameraTest> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (errText.isNotEmpty) 
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  errText,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ),
+            Text(errText),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 TextButton(
-                  child: const Text('Close'),
+                  child: const Text('close'),
                   onPressed: () {
-                    cameraController?.close();
+                    cameraController?.closeCamera();
                   },
                 ),
                 TextButton(
-                  child: const Text('Open'),
+                  child: const Text('open'),
                   onPressed: () {
-                    cameraController?.open();
+                    cameraController?.openUVCCamera();
                   },
                 ),
               ],
             ),
             if (cameraController != null)
               SizedBox(
-                width: 300,
-                height: 300,
-                child: UVCCameraPreview(
-                  controller: cameraController!,
-                  errorBuilder: (context, error) => Center(
-                    child: Text(
-                      error,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                  loadingBuilder: (context) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-              ),
+                  child: UVCCameraView(
+                      cameraController: cameraController!,
+                      params: const UVCCameraViewParamsEntity(frameFormat: 0),
+                      width: 300,
+                      height: 300)),
             TextButton(
-              child: const Text('Update Resolution'),
+              child: const Text('updateResolution'),
               onPressed: () async {
-                try {
-                  final sizes = await cameraController?.getPreviewSizes();
-                  if (sizes != null && sizes.isNotEmpty) {
-                    final size = sizes.first;
-                    final width = size['width'] as int;
-                    final height = size['height'] as int;
-                    await cameraController?.updateResolution(width, height);
-                    showCustomToast('Resolution updated to ${width}x$height');
-                  }
-                } catch (e) {
-                  showCustomToast('Failed to update resolution: $e');
-                }
+                await cameraController?.getAllPreviewSizes();
+                cameraController?.updateResolution(PreviewSize(width: 352, height: 288));
               },
             ),
             TextButton(
-              child: const Text('Get Camera Info'),
-              onPressed: () async {
-                try {
-                  final info = await cameraController?.getCameraInfo();
-                  showCustomToast(info.toString());
-                } catch (e) {
-                  showCustomToast('Failed to get camera info: $e');
-                }
+              child: const Text('getCurrentCameraRequestParameters'),
+              onPressed: () {
+                cameraController
+                    ?.getCurrentCameraRequestParameters()
+                    .then((value) => showCustomToast(value.toString()));
               },
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 TextButton(
-                  child: const Text('Start Streaming'),
+                  child: const Text('captureStreamStart'),
                   onPressed: () {
-                    cameraController?.startStreaming();
+                    cameraController?.captureStreamStart();
                   },
                 ),
-                TextButton(
-                  child: const Text('Stop Streaming'),
-                  onPressed: () {
-                    cameraController?.stopStreaming();
-                  },
-                ),
+                // TextButton(
+                //   child: const Text('captureStreamStop'),
+                //   onPressed: () {
+                //     cameraController?.captureStreamStop();
+                //   },
+                // ),
               ],
             ),
             Column(
@@ -174,14 +115,12 @@ class _CameraTestState extends State<CameraTest> {
                         height: 80,
                         alignment: Alignment.center,
                         color: Colors.green,
-                        child: images[0] == '' 
-                          ? const Text('Take Picture') 
-                          : Image.file(File(images[0])),
+                        child: images[0] == '' ? Text('takePicture') : Image.file(File(images[0])),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 GestureDetector(
                   onTap: () => captureVideo(1),
                   behavior: HitTestBehavior.opaque,
@@ -193,15 +132,9 @@ class _CameraTestState extends State<CameraTest> {
                         height: 80,
                         color: Colors.blue,
                         alignment: Alignment.center,
-                        child: Text(
-                          cameraController?.isRecording == true
-                            ? 'Stop Recording'
-                            : 'Record Video'
-                        ),
+                        child: Text('take video'),
                       ),
-                      Expanded(
-                        child: Text("Video path: $videoPath"),
-                      ),
+                      Expanded(child: Text("videoPath" + videoPath)),
                     ],
                   ),
                 ),
@@ -214,36 +147,19 @@ class _CameraTestState extends State<CameraTest> {
     );
   }
 
-  Future<void> takePicture(int i) async {
-    try {
-      String path = await cameraController!.takePicture();
-      setState(() {
-        images[i] = path;
-      });
-      showCustomToast('Picture saved to: $path');
-    } catch (e) {
-      showCustomToast('Failed to take picture: $e');
+  takePicture(int i) async {
+    String? path = await cameraController?.takePicture();
+    if (path != null) {
+      images[i] = path;
+      setState(() {});
     }
   }
 
-  Future<void> captureVideo(int i) async {
-    try {
-      if (cameraController!.isRecording) {
-        // 停止录制
-        String? path = await cameraController!.stopRecording();
-        if (path != null) {
-          setState(() {
-            videoPath = path;
-          });
-          showCustomToast('Video saved to: $path');
-        }
-      } else {
-        // 开始录制
-        await cameraController!.startRecording();
-        showCustomToast('Recording started');
-      }
-    } catch (e) {
-      showCustomToast('Video recording error: $e');
+  captureVideo(int i) async {
+    String? path = await cameraController?.captureVideo();
+    if (path != null) {
+      videoPath = path;
+      setState(() {});
     }
   }
 }
