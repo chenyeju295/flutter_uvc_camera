@@ -7,12 +7,16 @@ class UVCCameraView extends StatefulWidget {
   final double width;
   final double height;
   final UVCCameraViewParamsEntity? params;
-  const UVCCameraView(
-      {super.key,
-      required this.cameraController,
-      required this.width,
-      required this.height,
-      this.params});
+  final bool autoDispose;
+
+  const UVCCameraView({
+    super.key,
+    required this.cameraController,
+    required this.width,
+    required this.height,
+    this.params,
+    this.autoDispose = false,
+  });
 
   @override
   State<UVCCameraView> createState() => _UVCCameraViewState();
@@ -21,8 +25,10 @@ class UVCCameraView extends StatefulWidget {
 class _UVCCameraViewState extends State<UVCCameraView> {
   @override
   void dispose() {
-    widget.cameraController.closeCamera();
-    widget.cameraController.dispose();
+    if (widget.autoDispose) {
+      widget.cameraController.closeCamera();
+      widget.cameraController.dispose();
+    }
     super.dispose();
   }
 
@@ -32,12 +38,15 @@ class _UVCCameraViewState extends State<UVCCameraView> {
       width: widget.width,
       height: widget.height,
       child: AndroidView(
-          viewType: 'uvc_camera_view',
-          creationParams: widget.params?.toMap(),
-          creationParamsCodec: const StandardMessageCodec(),
-          onPlatformViewCreated: (id) {
+        viewType: 'uvc_camera_view',
+        creationParams: widget.params?.toMap(),
+        creationParamsCodec: const StandardMessageCodec(),
+        onPlatformViewCreated: (id) {
+          Future.microtask(() {
             widget.cameraController.initializeCamera();
-          }),
+          });
+        },
+      ),
     );
   }
 }
