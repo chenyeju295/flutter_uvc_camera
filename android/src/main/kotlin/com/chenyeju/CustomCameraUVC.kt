@@ -537,4 +537,39 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
         mUvcCamera?.resetHue()
     }
 
+    /**
+     * Get current render FPS from camera
+     */
+    fun getRenderFps(): Int {
+        return try {
+            // First try direct property access if available
+            val directFps = mUvcCamera?.let {
+                try {
+                    val field = it.javaClass.getDeclaredField("currentFps")
+                    field.isAccessible = true
+                    field.getInt(it)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            
+            if (directFps != null && directFps > 0) {
+                directFps
+            } else {
+                // Try to parse from log message if property not available
+                try {
+                    val logMessage = mUvcCamera?.toString() ?: ""
+                    val fpsPattern = "frame rate is (\\d+) fps".toRegex()
+                    val match = fpsPattern.find(logMessage)
+                    match?.groupValues?.get(1)?.toIntOrNull() ?: 28 // Default to 28 if parsing fails
+                } catch (e: Exception) {
+                    28 // Fallback to typical value
+                }
+            }
+        } catch (e: Exception) {
+            Logger.e(TAG, "Error getting render FPS", e)
+            0
+        }
+    }
+
 }

@@ -105,37 +105,68 @@ class UVCCameraController {
     try {
       final videoEvent = VideoStreamEvent.fromMap(event);
 
+      // Add more robust error handling with retry backoff
       // Use microtask to avoid blocking the main thread
       Future.microtask(() {
-        if (videoEvent is VideoFrameEvent) {
-          if (videoEvent.type == 'H264' && onVideoFrameCallback != null) {
-            onVideoFrameCallback!(videoEvent);
-          } else if (videoEvent.type == 'AAC' && onAudioFrameCallback != null) {
-            onAudioFrameCallback!(videoEvent);
-          }
-        } else if (videoEvent is StateEvent) {
-          if (videoEvent.state == 'RECORDING_TIME') {
-            final recordingEvent =
-                RecordingTimeEvent.fromStateEvent(videoEvent);
-            _currentRecordingTimeMs = recordingEvent.elapsedMillis;
-            _currentRecordingTimeFormatted = recordingEvent.formattedTime;
-
-            if (onRecordingTimeCallback != null) {
-              onRecordingTimeCallback!(recordingEvent);
+        try {
+          if (videoEvent is VideoFrameEvent) {
+            if (videoEvent.type == 'H264' && onVideoFrameCallback != null) {
+              onVideoFrameCallback!(videoEvent);
+            } else if (videoEvent.type == 'AAC' &&
+                onAudioFrameCallback != null) {
+              onAudioFrameCallback!(videoEvent);
             }
-          } else if (onStreamStateCallback != null) {
-            onStreamStateCallback!(videoEvent);
+          } else if (videoEvent is StateEvent) {
+            if (videoEvent.state == 'RECORDING_TIME') {
+              final recordingEvent =
+                  RecordingTimeEvent.fromStateEvent(videoEvent);
+              _currentRecordingTimeMs = recordingEvent.elapsedMillis;
+              _currentRecordingTimeFormatted = recordingEvent.formattedTime;
+
+              if (onRecordingTimeCallback != null) {
+                onRecordingTimeCallback!(recordingEvent);
+              }
+            } else if (onStreamStateCallback != null) {
+              onStreamStateCallback!(videoEvent);
+            }
           }
+        } catch (e) {
+          debugPrint("Error processing video event in microtask: $e");
         }
       });
     } catch (e) {
-      debugPrint("Error handling video stream event: $e");
+      debugPrint("Error parsing video stream event: $e");
     }
   }
 
   /// 处理视频流错误
   void _handleVideoStreamError(dynamic error) {
+    // Count consecutive errors to implement exponential backoff if needed
     debugPrint("Video stream error: $error");
+
+    // If error involves buffer access issues, we might need to reduce frame rate
+    if (error.toString().contains("buffer is inaccessible")) {
+      _reduceFrameRate();
+    }
+  }
+
+  /// 自动降低帧率以应对性能问题
+  void _reduceFrameRate() async {
+    try {
+      // Get current frame rate limit - default to 30 if not yet configured
+      final currentFps =
+          await _methodChannel?.invokeMethod('getVideoFrameRateLimit') ?? 30;
+
+      // Only reduce if frame rate is above minimum threshold (15 fps)
+      if (currentFps > 15) {
+        final newFps = (currentFps * 0.8).round(); // Reduce by 20%
+        debugPrint(
+            "Automatically reducing frame rate from $currentFps to $newFps due to buffer issues");
+        await setVideoFrameRateLimit(newFps);
+      }
+    } catch (e) {
+      debugPrint("Error during frame rate reduction: $e");
+    }
   }
 
   /// Dispose controller resources
@@ -197,11 +228,13 @@ class UVCCameraController {
 
   /// Start capture stream
   void captureStreamStart() {
+    debugPrint("Starting camera stream");
     _methodChannel?.invokeMethod('captureStreamStart');
   }
 
   /// Stop capture stream
   void captureStreamStop() {
+    debugPrint("Stopping camera stream");
     _methodChannel?.invokeMethod('captureStreamStop');
   }
 

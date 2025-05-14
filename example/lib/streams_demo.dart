@@ -9,9 +9,10 @@ class StreamsDemo extends StatefulWidget {
 }
 
 class _StreamsDemoState extends State<StreamsDemo> {
-  UVCCameraController? cameraController;
+  late UVCCameraController cameraController;
   bool isCameraOpen = false;
   bool isStreaming = false;
+  bool isRecording = false;
 
   // Streaming stats
   int videoFramesReceived = 0;
@@ -20,10 +21,9 @@ class _StreamsDemoState extends State<StreamsDemo> {
   String recordingTime = "00:00:00";
   String streamState = "Not started";
 
-  // FPS calculation
-  int _framesInLastSecond = 0;
+  // FPS values
   int _currentFps = 0;
-  DateTime? _lastFpsUpdateTime;
+  int _renderFps = 0; // GL render FPS
 
   @override
   void initState() {
@@ -31,11 +31,13 @@ class _StreamsDemoState extends State<StreamsDemo> {
     cameraController = UVCCameraController();
 
     // Set up callbacks BEFORE attempting to open the camera
-    cameraController?.msgCallback = (state) {
+    cameraController.msgCallback = (state) {
+      debugPrint("Camera message: $state");
       showCustomToast(state);
     };
 
-    cameraController?.cameraStateCallback = (state) {
+    cameraController.cameraStateCallback = (state) {
+      debugPrint("Camera state changed: $state");
       if (mounted) {
         setState(() {
           isCameraOpen = state == UVCCameraState.opened;
@@ -43,64 +45,70 @@ class _StreamsDemoState extends State<StreamsDemo> {
       }
     };
 
-    cameraController?.onVideoFrameCallback = (frame) {
+    cameraController.onVideoFrameCallback = (frame) {
+      debugPrint("Video frame received: size=${frame.size}, fps=${frame.fps}");
       setState(() {
         videoFramesReceived++;
         lastVideoFrameSize = frame.size;
-        _updateFps();
+
+        // Use the FPS from the frame directly
+        if (frame.fps > 0) {
+          _currentFps = frame.fps;
+        }
       });
     };
 
-    cameraController?.onAudioFrameCallback = (frame) {
+    cameraController.onAudioFrameCallback = (frame) {
       setState(() {
         audioFramesReceived++;
       });
     };
 
-    cameraController?.onRecordingTimeCallback = (timeEvent) {
+    cameraController.onRecordingTimeCallback = (timeEvent) {
       setState(() {
         recordingTime = timeEvent.formattedTime;
-      });
-    };
 
-    cameraController?.onStreamStateCallback = (stateEvent) {
-      setState(() {
-        streamState = stateEvent.state;
-
-        if (stateEvent.state == 'STARTED') {
-          isStreaming = true;
-        } else if (stateEvent.state == 'STOPPED') {
-          isStreaming = false;
+        // 如果收到了最终的录制时间更新，那么录制已结束
+        if (timeEvent.isFinal && isRecording) {
+          isRecording = false;
         }
       });
     };
-  }
 
-  void _updateFps() {
-    if (_lastFpsUpdateTime == null) {
-      _lastFpsUpdateTime = DateTime.now();
-      _framesInLastSecond = 1;
-      return;
-    }
-
-    final now = DateTime.now();
-    final difference = now.difference(_lastFpsUpdateTime!);
-
-    if (difference.inMilliseconds >= 1000) {
+    cameraController.onStreamStateCallback = (stateEvent) {
+      debugPrint("Stream state changed: ${stateEvent.state}");
       setState(() {
-        _currentFps = _framesInLastSecond;
-        _framesInLastSecond = 1;
-        _lastFpsUpdateTime = now;
+        streamState = stateEvent.state;
+
+        if (stateEvent.state == 'STARTED' ||
+            stateEvent.state == 'STREAM_STARTED') {
+          isStreaming = true;
+        } else if (stateEvent.state == 'STOPPED' ||
+            stateEvent.state == 'STREAM_STOPPED') {
+          isStreaming = false;
+          // Reset render FPS when streaming stops
+          _renderFps = 0;
+        } else if (stateEvent.state == 'RENDER_FPS' &&
+            stateEvent.data != null) {
+          // Update render FPS from native side
+          final renderFps = stateEvent.data?['renderFps'];
+          if (renderFps is int && renderFps > 0) {
+            debugPrint("Received GL render FPS: $renderFps");
+            _renderFps = renderFps;
+          }
+        }
       });
-    } else {
-      _framesInLastSecond++;
-    }
+    };
+
+    // After initializing camera
+    cameraController.setVideoFrameRateLimit(20); // Lower than default 30
+    cameraController.setVideoFrameSizeLimit(1024 * 1024); // Limit frame size
   }
 
   @override
   void dispose() {
-    cameraController?.closeCamera();
-    cameraController?.dispose();
+    cameraController.closeCamera();
+    cameraController.dispose();
     super.dispose();
   }
 
@@ -119,17 +127,34 @@ class _StreamsDemoState extends State<StreamsDemo> {
   }
 
   void toggleStreaming() {
+    debugPrint(
+        "Toggle streaming called, current state: ${isStreaming ? 'streaming' : 'not streaming'}");
     if (isStreaming) {
-      cameraController?.captureStreamStop();
+      debugPrint("Stopping stream");
+      cameraController.captureStreamStop();
     } else {
-      cameraController?.captureStreamStart();
+      debugPrint("Starting stream");
+      cameraController.captureStreamStart();
     }
   }
 
   Future<void> captureVideo() async {
-    final path = await cameraController?.captureVideo();
-    if (path != null) {
-      showCustomToast('Video saved to: $path');
+    if (isRecording) {
+      // 如果正在录制，则停止录制
+      setState(() {
+        isRecording = false;
+      });
+      final path = await cameraController.captureVideo();
+      if (path != null) {
+        showCustomToast('Video saved to: $path');
+      }
+    } else {
+      // 开始录制
+      setState(() {
+        isRecording = true;
+        recordingTime = "00:00:00"; // 重置录制时间
+      });
+      await cameraController.captureVideo();
     }
   }
 
@@ -176,12 +201,19 @@ class _StreamsDemoState extends State<StreamsDemo> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black54,
+                      color: isStreaming
+                          ? Colors.green.withOpacity(0.7)
+                          : Colors.black54,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       '$_currentFps FPS',
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight:
+                            isStreaming ? FontWeight.bold : FontWeight.normal,
+                        fontSize: isStreaming ? 14 : 12,
+                      ),
                     ),
                   ),
                 ),
@@ -220,6 +252,46 @@ class _StreamsDemoState extends State<StreamsDemo> {
                       ),
                     ),
                   ),
+                if (isRecording)
+                  Positioned(
+                    bottom: 10,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 6, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.red.shade700, width: 2),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'RECORDING $recordingTime',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -233,7 +305,7 @@ class _StreamsDemoState extends State<StreamsDemo> {
                   child: ElevatedButton.icon(
                     onPressed: isCameraOpen
                         ? null
-                        : () => cameraController?.openUVCCamera(),
+                        : () => cameraController.openUVCCamera(),
                     icon: const Icon(Icons.camera),
                     label: const Text('Open Camera'),
                     style: ElevatedButton.styleFrom(
@@ -247,7 +319,7 @@ class _StreamsDemoState extends State<StreamsDemo> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: isCameraOpen
-                        ? () => cameraController?.closeCamera()
+                        ? () => cameraController.closeCamera()
                         : null,
                     icon: const Icon(Icons.close),
                     label: const Text('Close Camera'),
@@ -283,10 +355,10 @@ class _StreamsDemoState extends State<StreamsDemo> {
                 ElevatedButton.icon(
                   onPressed:
                       (isCameraOpen && isStreaming) ? captureVideo : null,
-                  icon: const Icon(Icons.videocam),
-                  label: const Text('Record Video'),
+                  icon: Icon(isRecording ? Icons.stop : Icons.videocam),
+                  label: Text(isRecording ? 'Stop Recording' : 'Record Video'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
+                    backgroundColor: isRecording ? Colors.red : Colors.orange,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -319,13 +391,20 @@ class _StreamsDemoState extends State<StreamsDemo> {
                     const SizedBox(height: 16),
                     _buildStatRow('Stream State', streamState),
                     _buildStatRow('Current FPS', _currentFps.toString()),
+                    if (_renderFps > 0)
+                      _buildStatRow('GL Render FPS', _renderFps.toString(),
+                          highlight: true),
+                    _buildStatRow('Recording Status',
+                        isRecording ? 'Recording' : 'Not Recording',
+                        highlight: isRecording),
+                    _buildStatRow('Recording Time', recordingTime,
+                        highlight: isRecording),
                     _buildStatRow(
                         'Video Frames', videoFramesReceived.toString()),
                     _buildStatRow(
                         'Audio Frames', audioFramesReceived.toString()),
                     _buildStatRow(
                         'Last Frame Size', '$lastVideoFrameSize bytes'),
-                    _buildStatRow('Recording Time', recordingTime),
                   ],
                 ),
               ),
@@ -336,7 +415,7 @@ class _StreamsDemoState extends State<StreamsDemo> {
     );
   }
 
-  Widget _buildStatRow(String label, String value) {
+  Widget _buildStatRow(String label, String value, {bool highlight = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
@@ -351,9 +430,10 @@ class _StreamsDemoState extends State<StreamsDemo> {
           ),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
+              color: highlight ? Colors.blue : null,
             ),
           ),
         ],

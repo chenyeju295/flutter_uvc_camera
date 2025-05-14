@@ -13,15 +13,29 @@ class CameraTest extends StatefulWidget {
 class _CameraTestState extends State<CameraTest> {
   List<String> images = ['', '', '', '', '', '', ''];
   String errText = '';
-  UVCCameraController? cameraController;
+  late UVCCameraController cameraController;
   String videoPath = '';
+  bool isRecording = false;
+  String recordingTime = "00:00:00";
 
   @override
   void initState() {
     super.initState();
     cameraController = UVCCameraController();
-    cameraController?.msgCallback = (state) {
+    cameraController.msgCallback = (state) {
       showCustomToast(state);
+    };
+
+    // 添加录制时间回调
+    cameraController.onRecordingTimeCallback = (timeEvent) {
+      setState(() {
+        recordingTime = timeEvent.formattedTime;
+
+        // 如果收到了最终的录制时间更新，那么录制已结束
+        if (timeEvent.isFinal && isRecording) {
+          isRecording = false;
+        }
+      });
     };
   }
 
@@ -74,14 +88,14 @@ class _CameraTestState extends State<CameraTest> {
                   'Open Camera',
                   Icons.camera,
                   Colors.green,
-                  () => cameraController?.openUVCCamera(),
+                  () => cameraController.openUVCCamera(),
                 ),
                 SizedBox(height: 16),
                 _buildControlButton(
                   'Close Camera',
                   Icons.camera_outlined,
                   Colors.red,
-                  () => cameraController?.closeCamera(),
+                  () => cameraController.closeCamera(),
                 ),
               ],
             ),
@@ -98,9 +112,9 @@ class _CameraTestState extends State<CameraTest> {
                   Icons.settings_overscan,
                   Colors.blue,
                   () async {
-                    await cameraController?.getAllPreviewSizes();
-                    cameraController?.updateResolution(
-                        PreviewSize(width: 352, height: 288));
+                    await cameraController.getAllPreviewSizes();
+                    cameraController
+                        .updateResolution(PreviewSize(width: 352, height: 288));
                   },
                 ),
                 SizedBox(height: 16),
@@ -123,7 +137,7 @@ class _CameraTestState extends State<CameraTest> {
               'Start Capture Stream',
               Icons.play_circle_outline,
               Colors.amber,
-              () => cameraController?.captureStreamStart(),
+              () => cameraController.captureStreamStart(),
               fullWidth: true,
             ),
 
@@ -142,11 +156,13 @@ class _CameraTestState extends State<CameraTest> {
                 ),
                 const SizedBox(width: 16),
                 _buildMediaCaptureCard(
-                  'Record Video',
-                  Icons.videocam,
-                  Colors.blue.shade100,
-                  Colors.blue,
+                  isRecording ? 'Stop Recording' : 'Record Video',
+                  isRecording ? Icons.stop : Icons.videocam,
+                  isRecording ? Colors.red.shade100 : Colors.blue.shade100,
+                  isRecording ? Colors.red : Colors.blue,
                   () => captureVideo(1),
+                  showRecording: isRecording,
+                  recordingTime: recordingTime,
                 ),
               ],
             ),
@@ -227,29 +243,73 @@ class _CameraTestState extends State<CameraTest> {
   }
 
   Widget _buildCameraPreview() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                spreadRadius: 1,
+                blurRadius: 5,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: UVCCameraView(
-          cameraController: cameraController!,
-          params: const UVCCameraViewParamsEntity(frameFormat: 0),
-          width: 300,
-          height: 300,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: UVCCameraView(
+              cameraController: cameraController!,
+              params: const UVCCameraViewParamsEntity(frameFormat: 0),
+              width: 300,
+              height: 300,
+            ),
+          ),
         ),
-      ),
+
+        // 录制状态指示器
+        if (isRecording)
+          Positioned(
+            bottom: 30,
+            left: 0,
+            right: 0,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 30),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.red.shade700, width: 2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'REC $recordingTime',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -260,6 +320,8 @@ class _CameraTestState extends State<CameraTest> {
     Color iconColor,
     VoidCallback onTap, {
     String? previewPath,
+    bool showRecording = false,
+    String recordingTime = '',
   }) {
     return Expanded(
       child: InkWell(
@@ -299,18 +361,53 @@ class _CameraTestState extends State<CameraTest> {
                     ],
                   ),
                 )
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              : Stack(
                   children: [
-                    Icon(icon, size: 48, color: iconColor),
-                    const SizedBox(height: 8),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: iconColor,
-                      ),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, size: 48, color: iconColor),
+                        const SizedBox(height: 8),
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: iconColor,
+                          ),
+                        ),
+                        if (showRecording)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              recordingTime,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
+                    if (showRecording)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
         ),
@@ -319,7 +416,7 @@ class _CameraTestState extends State<CameraTest> {
   }
 
   takePicture(int i) async {
-    String? path = await cameraController?.takePicture();
+    String? path = await cameraController.takePicture();
     if (path != null) {
       images[i] = path;
       setState(() {});
@@ -328,11 +425,23 @@ class _CameraTestState extends State<CameraTest> {
   }
 
   captureVideo(int i) async {
-    String? path = await cameraController?.captureVideo();
-    if (path != null) {
-      videoPath = path;
-      setState(() {});
-      showCustomToast('Video saved successfully');
+    if (isRecording) {
+      // 如果正在录制，则停止录制
+      String? path = await cameraController.captureVideo();
+      if (path != null) {
+        videoPath = path;
+        setState(() {
+          isRecording = false;
+        });
+        showCustomToast('Video saved successfully');
+      }
+    } else {
+      // 开始录制
+      setState(() {
+        isRecording = true;
+        recordingTime = "00:00:00"; // 重置录制时间
+      });
+      await cameraController.captureVideo();
     }
   }
 }

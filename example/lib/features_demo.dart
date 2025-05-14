@@ -9,7 +9,7 @@ class FeaturesDemo extends StatefulWidget {
 }
 
 class _FeaturesDemoState extends State<FeaturesDemo> {
-  UVCCameraController? cameraController;
+  late UVCCameraController cameraController;
   CameraFeatures? features;
   bool isLoading = false;
   bool isCameraOpen = false;
@@ -30,10 +30,10 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
   void initState() {
     super.initState();
     cameraController = UVCCameraController();
-    cameraController?.msgCallback = (state) {
+    cameraController.msgCallback = (state) {
       showCustomToast(state);
     };
-    cameraController?.cameraStateCallback = (state) {
+    cameraController.cameraStateCallback = (state) {
       setState(() {
         isCameraOpen = state == UVCCameraState.opened;
         if (isCameraOpen) {
@@ -45,8 +45,8 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
 
   @override
   void dispose() {
-    cameraController?.closeCamera();
-    cameraController?.dispose();
+    cameraController.closeCamera();
+    cameraController.dispose();
     super.dispose();
   }
 
@@ -70,7 +70,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
     });
 
     try {
-      final result = await cameraController?.getAllCameraFeatures();
+      final result = await cameraController.getAllCameraFeatures();
       if (result != null) {
         setState(() {
           features = result;
@@ -107,47 +107,31 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
       body: Column(
         children: [
           // Camera preview
-          if (cameraController != null && isCameraOpen)
-            Container(
-              margin: const EdgeInsets.all(16),
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: UVCCameraView(
-                  cameraController: cameraController!,
-                  params: const UVCCameraViewParamsEntity(frameFormat: 0),
-                  width: double.infinity,
-                  height: 200,
+          Container(
+            margin: const EdgeInsets.all(16),
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 5,
+                  offset: const Offset(0, 3),
                 ),
-              ),
-            )
-          else
-            Container(
-              margin: const EdgeInsets.all(16),
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade900,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Center(
-                child: Text(
-                  'Camera not open',
-                  style: TextStyle(color: Colors.white),
-                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: UVCCameraView(
+                cameraController: cameraController!,
+                params: const UVCCameraViewParamsEntity(frameFormat: 0),
+                width: double.infinity,
+                height: 200,
               ),
             ),
+          ),
 
           // Camera open/close buttons
           Row(
@@ -156,7 +140,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
               ElevatedButton.icon(
                 onPressed: isCameraOpen
                     ? null
-                    : () => cameraController?.openUVCCamera(),
+                    : () => cameraController.openUVCCamera(),
                 icon: const Icon(Icons.camera),
                 label: const Text('Open Camera'),
                 style: ElevatedButton.styleFrom(
@@ -168,7 +152,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
               const SizedBox(width: 16),
               ElevatedButton.icon(
                 onPressed:
-                    isCameraOpen ? () => cameraController?.closeCamera() : null,
+                    isCameraOpen ? () => cameraController.closeCamera() : null,
                 icon: const Icon(Icons.close),
                 label: const Text('Close Camera'),
                 style: ElevatedButton.styleFrom(
@@ -214,7 +198,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                               onChanged: features?.autoFocus != null
                                   ? (value) {
                                       setState(() => autoFocus = value);
-                                      cameraController?.setAutoFocus(value);
+                                      cameraController.setAutoFocus(value);
                                     }
                                   : null,
                             ),
@@ -255,7 +239,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                                 max: 100,
                                 onChanged: (value) {
                                   setState(() => contrast = value.toInt());
-                                  cameraController?.setContrast(value.toInt());
+                                  cameraController.setContrast(value.toInt());
                                 },
                               ),
 
@@ -280,7 +264,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                                 max: 100,
                                 onChanged: (value) {
                                   setState(() => sharpness = value.toInt());
-                                  cameraController?.setSharpness(value.toInt());
+                                  cameraController.setSharpness(value.toInt());
                                 },
                               ),
 
@@ -292,7 +276,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                                 max: 100,
                                 onChanged: (value) {
                                   setState(() => zoom = value.toInt());
-                                  cameraController?.setZoom(value.toInt());
+                                  cameraController.setZoom(value.toInt());
                                 },
                               ),
 
@@ -304,7 +288,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                                 max: 100,
                                 onChanged: (value) {
                                   setState(() => gain = value.toInt());
-                                  cameraController?.setGain(value.toInt());
+                                  cameraController.setGain(value.toInt());
                                 },
                               ),
 
@@ -316,7 +300,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                                 max: 100,
                                 onChanged: (value) {
                                   setState(() => gamma = value.toInt());
-                                  cameraController?.setGamma(value.toInt());
+                                  cameraController.setGamma(value.toInt());
                                 },
                               ),
 
@@ -328,7 +312,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                                 max: 100,
                                 onChanged: (value) {
                                   setState(() => hue = value.toInt());
-                                  cameraController?.setHue(value.toInt());
+                                  cameraController.setHue(value.toInt());
                                 },
                               ),
 
@@ -449,34 +433,34 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
 
     try {
       if (features?.brightness != null) {
-        await cameraController?.resetCameraFeature('brightness');
+        await cameraController.resetCameraFeature('brightness');
       }
       if (features?.contrast != null) {
-        await cameraController?.resetCameraFeature('contrast');
+        await cameraController.resetCameraFeature('contrast');
       }
       if (features?.saturation != null) {
-        await cameraController?.resetCameraFeature('saturation');
+        await cameraController.resetCameraFeature('saturation');
       }
       if (features?.sharpness != null) {
-        await cameraController?.resetCameraFeature('sharpness');
+        await cameraController.resetCameraFeature('sharpness');
       }
       if (features?.zoom != null) {
-        await cameraController?.resetCameraFeature('zoom');
+        await cameraController.resetCameraFeature('zoom');
       }
       if (features?.gain != null) {
-        await cameraController?.resetCameraFeature('gain');
+        await cameraController.resetCameraFeature('gain');
       }
       if (features?.gamma != null) {
-        await cameraController?.resetCameraFeature('gamma');
+        await cameraController.resetCameraFeature('gamma');
       }
       if (features?.hue != null) {
-        await cameraController?.resetCameraFeature('hue');
+        await cameraController.resetCameraFeature('hue');
       }
       if (features?.autoFocus != null) {
-        await cameraController?.resetCameraFeature('autofocus');
+        await cameraController.resetCameraFeature('autofocus');
       }
       if (features?.autoWhiteBalance != null) {
-        await cameraController?.resetCameraFeature('autowhitebalance');
+        await cameraController.resetCameraFeature('autowhitebalance');
       }
 
       // Refresh features after reset

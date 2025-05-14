@@ -69,6 +69,37 @@ internal class UVCCameraView(
     private val configManager = CameraConfigManager()
     private val featuresManager = CameraFeaturesManager(mChannel)
     
+    // Track streaming state
+    private var isStreaming = false
+    // Handler for periodic FPS updates
+    private val fpsReportHandler = Handler(Looper.getMainLooper())
+    private val fpsReportRunnable: Runnable = object : Runnable {
+        override fun run() {
+            if (isStreaming) {
+                // Get FPS from camera if available
+                val camera = getCurrentCamera()
+                if (camera is CameraUVC) {
+                    try {
+                        // Get render FPS from camera implementation
+                        val renderFps = camera.getRenderFps()
+                        if (renderFps > 0) {
+                            Logger.i(TAG, "camera render frame rate is $renderFps fps-->gl_render")
+                            // Send as state update
+                            val data = HashMap<String, Any>()
+                            data["renderFps"] = renderFps
+                            videoStreamHandler.sendState("RENDER_FPS", data)
+                        }
+                    } catch (e: Exception) {
+                        Logger.e(TAG, "Error getting render FPS", e)
+                    }
+                }
+                
+                // Schedule next update
+                fpsReportHandler.postDelayed(this, 1000)
+            }
+        }
+    }
+    
     init {
         configManager.updateFromParams(params)
     }
@@ -119,6 +150,10 @@ internal class UVCCameraView(
         mViewBinding.fragmentContainer.removeAllViews()
         stateManager.updateState(CameraStateManager.CameraState.CLOSED)
         recordingTimerManager.release()
+        
+        // Clean up FPS monitoring
+        isStreaming = false
+        fpsReportHandler.removeCallbacks(fpsReportRunnable)
     }
 
     override fun onCameraState(
@@ -511,17 +546,37 @@ internal class UVCCameraView(
      */
     fun captureStreamStart() {
         if (!stateManager.checkStateForOperation("stream")) {
+            Logger.e(TAG, "Camera not ready for streaming. Current state: ${stateManager.getCurrentState()}")
             callFlutter("Camera not ready for streaming")
             return
         }
         
+        Logger.i(TAG, "Starting camera stream")
         setEncodeDataCallBack()
-        getCurrentCamera()?.captureStreamStart()
+        val camera = getCurrentCamera()
+        if (camera == null) {
+            Logger.e(TAG, "Cannot start stream - camera is null")
+            callFlutter("Camera not available")
+            return
+        }
+        camera.captureStreamStart()
+        Logger.i(TAG, "Camera stream started")
+        isStreaming = true
+        videoStreamHandler.sendState("STREAM_STARTED")
+        
+        // Start FPS monitoring
+        fpsReportHandler.post(fpsReportRunnable)
     }
 
     fun captureStreamStop() {
+        Logger.i(TAG, "Stopping camera stream")
         getCurrentCamera()?.captureStreamStop()
+        Logger.i(TAG, "Camera stream stopped")
+        isStreaming = false
         videoStreamHandler.sendState("STREAM_STOPPED")
+        
+        // Stop FPS monitoring
+        fpsReportHandler.removeCallbacks(fpsReportRunnable)
     }
 
     private fun setEncodeDataCallBack() {
