@@ -12,65 +12,94 @@ class UVCCameraViewFactory(
     private var channel: MethodChannel,
     private val videoStreamHandler: VideoStreamHandler
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
-    private lateinit var cameraView: UVCCameraView
+    private var cameraView: UVCCameraView? = null
     private val recordingTimerManager = RecordingTimerManager(videoStreamHandler)
+    private var pendingInit = false
+    private var pendingOpen = false
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
-        cameraView = UVCCameraView(context, this.channel, args, videoStreamHandler, recordingTimerManager)
-        plugin.setPermissionResultListener(cameraView)
-        return cameraView
+        val view = UVCCameraView(context, this.channel, args, videoStreamHandler, recordingTimerManager)
+        cameraView = view
+        plugin.setPermissionResultListener(view)
+        if (pendingInit) {
+            view.initCamera()
+            pendingInit = false
+        }
+        if (pendingOpen) {
+            view.openUVCCamera()
+            pendingOpen = false
+        }
+        return view
     }
 
     fun initCamera() {
-        cameraView.initCamera()
+        val view = cameraView
+        if (view == null) {
+            pendingInit = true
+            return
+        }
+        view.initCamera()
     }
 
     fun openUVCCamera() {
-        cameraView.openUVCCamera()
+        val view = cameraView
+        if (view == null) {
+            pendingOpen = true
+            return
+        }
+        view.openUVCCamera()
     }
 
     fun takePicture(callback: UVCStringCallback) {
-        cameraView.takePicture(callback)
+        cameraView?.takePicture(callback)
     }
     
     fun captureVideo(callback: UVCStringCallback) {
-        cameraView.captureVideo(callback)
+        cameraView?.captureVideo(callback)
     }
 
     fun captureStreamStart() {
-        cameraView.captureStreamStart()
+        cameraView?.captureStreamStart()
     }
     
     fun captureStreamStop() {
-        cameraView.captureStreamStop()
+        cameraView?.captureStreamStop()
+    }
+    
+    fun startPlayMic(): Boolean {
+        return cameraView?.startPlayMic() ?: false
+    }
+    
+    fun stopPlayMic(): Boolean {
+        return cameraView?.stopPlayMic() ?: false
     }
 
-    fun getAllPreviewSizes() = cameraView.getAllPreviewSizes()
+    fun getAllPreviewSizes() = cameraView?.getAllPreviewSizes()
     
-    fun getCurrentCameraRequestParameters() = cameraView.getCurrentCameraRequestParameters()
+    fun getCurrentCameraRequestParameters() = cameraView?.getCurrentCameraRequestParameters()
 
     fun closeCamera() {
-        cameraView.closeCamera()
+        cameraView?.closeCamera()
     }
 
     fun updateResolution(arguments: Any?) {
-        cameraView.updateResolution(arguments)
+        cameraView?.updateResolution(arguments)
     }
     
     // 相机特性方法
     fun setCameraFeature(feature: String, value: Int): Boolean {
-        return cameraView.setCameraFeature(feature, value)
+        return cameraView?.setCameraFeature(feature, value) ?: false
     }
     
     fun resetCameraFeature(feature: String): Boolean {
-        return cameraView.resetCameraFeature(feature)
+        return cameraView?.resetCameraFeature(feature) ?: false
     }
     
     fun getCameraFeature(feature: String): Int? {
-        return cameraView.getCameraFeature(feature)
+        return cameraView?.getCameraFeature(feature)
     }
     
     fun getAllCameraFeatures(): String? {
-        return cameraView.getAllCameraFeatures()
+        return cameraView?.getAllCameraFeatures()
     }
 }

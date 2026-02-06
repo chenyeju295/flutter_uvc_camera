@@ -238,6 +238,18 @@ class UVCCameraController {
     _methodChannel?.invokeMethod('captureStreamStop');
   }
 
+  /// Start playing mic audio from UVC device (Android only)
+  Future<bool> startPlayMic() async {
+    final result = await _methodChannel?.invokeMethod('startPlayMic');
+    return result == true;
+  }
+
+  /// Stop playing mic audio from UVC device (Android only)
+  Future<bool> stopPlayMic() async {
+    final result = await _methodChannel?.invokeMethod('stopPlayMic');
+    return result == true;
+  }
+
   /// Start camera preview
   Future<void> startCamera() async {
     await _methodChannel?.invokeMethod('startCamera');

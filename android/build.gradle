@@ -58,16 +58,37 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion 19
+        minSdkVersion 21
+        consumerProguardFiles 'proguard-rules.pro'
+        externalNativeBuild {
+            ndkBuild {
+                arguments "NDK_APPLICATION_MK:=src/main/jni/Application.mk"
+                abiFilters "arm64-v8a", "armeabi-v7a", "x86_64"
+            }
+        }
+    }
+
+    // Android 15+ 16KB page size compatibility
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+    
+    externalNativeBuild {
+        ndkBuild {
+            path "src/main/jni/Android.mk"
+        }
     }
 
     dependencies {
-        implementation 'com.github.chenyeju295.AndroidUSBCamera:libausbc:3.3.6'
-        implementation 'com.github.chenyeju295.AndroidUSBCamera:libuvc:3.3.6'
+        implementation 'com.elvishew:xlog:1.11.0'
         implementation 'androidx.appcompat:appcompat:1.6.1'
+        implementation 'com.google.android.material:material:1.10.0'
         implementation fileTree(dir: 'libs', include: ['*.jar'])
-        implementation 'com.android.support.constraint:constraint-layout: 5.0.0'
+        implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
         implementation 'com.google.code.gson:gson:2.8.8'
+        implementation 'androidx.recyclerview:recyclerview:1.3.2'
     }
 
     lintOptions {

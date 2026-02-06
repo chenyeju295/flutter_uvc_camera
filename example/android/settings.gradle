@@ -10,11 +10,29 @@ pluginManagement {
 
     includeBuild("${settings.ext.flutterSdkPath}/packages/flutter_tools/gradle")
 
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+
     plugins {
         id "dev.flutter.flutter-gradle-plugin" version "1.0.0" apply false
     }
 }
 
-include ":app"
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.4.1'
+    }
+}
 
-apply from: "${settings.ext.flutterSdkPath}/packages/flutter_tools/gradle/app_plugin_loader.gradle"
+plugins {
+    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+}
+
+include ":app"

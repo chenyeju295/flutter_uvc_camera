@@ -22,7 +22,7 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     private var videoStreamChannel: EventChannel? = null
     private var videoStreamHandler = VideoStreamHandler()
     
-    private lateinit var mUVCCameraViewFactory: UVCCameraViewFactory
+    private var mUVCCameraViewFactory: UVCCameraViewFactory? = null
     private var activity: Activity? = null
     private var permissionResultListener: PermissionResultListener? = null
     private var mActivityPluginBinding: ActivityPluginBinding? = null
@@ -38,14 +38,16 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         videoStreamChannel!!.setStreamHandler(videoStreamHandler)
         
         // 初始化视图工厂
-        mUVCCameraViewFactory = UVCCameraViewFactory(this, methodChannel!!, videoStreamHandler)
-        flutterPluginBinding.platformViewRegistry.registerViewFactory(viewName, mUVCCameraViewFactory)
+        val factory = UVCCameraViewFactory(this, methodChannel!!, videoStreamHandler)
+        mUVCCameraViewFactory = factory
+        flutterPluginBinding.platformViewRegistry.registerViewFactory(viewName, factory)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         methodChannel?.setMethodCallHandler(null)
         methodChannel = null
-        
+        mUVCCameraViewFactory = null
+
         videoStreamChannel?.setStreamHandler(null)
         videoStreamChannel = null
     }
@@ -83,26 +85,39 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        val factory = mUVCCameraViewFactory
         when (call.method) {
             // Basic camera operations
             "initializeCamera" -> {
-                mUVCCameraViewFactory.initCamera()
+                if (factory == null) {
+                    result.error("NOT_READY", "Platform view not created yet", null)
+                    return@onMethodCall
+                }
+                factory.initCamera()
                 result.success(null)
             }
 
             "openUVCCamera" -> {
-                mUVCCameraViewFactory.openUVCCamera()
+                if (factory == null) {
+                    result.error("NOT_READY", "Platform view not created yet", null)
+                    return@onMethodCall
+                }
+                factory.openUVCCamera()
                 result.success(null)
             }
 
             "closeCamera" -> {
-                mUVCCameraViewFactory.closeCamera()
+                factory?.closeCamera()
                 result.success(null)
             }
 
             // Capture operations
             "takePicture" -> {
-                mUVCCameraViewFactory.takePicture(
+                if (factory == null) {
+                    result.error("NOT_READY", "Platform view not created yet", null)
+                    return@onMethodCall
+                }
+                factory.takePicture(
                     object : UVCStringCallback {
                         override fun onSuccess(path: String) {
                             result.success(path)
@@ -115,7 +130,11 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             "captureVideo" -> {
-                mUVCCameraViewFactory.captureVideo(
+                if (factory == null) {
+                    result.error("NOT_READY", "Platform view not created yet", null)
+                    return@onMethodCall
+                }
+                factory.captureVideo(
                     object : UVCStringCallback {
                         override fun onSuccess(path: String) {
                             result.success(path)
@@ -128,13 +147,21 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
             
             "captureStreamStart" -> {
-                mUVCCameraViewFactory.captureStreamStart()
+                factory?.captureStreamStart()
                 result.success(null)
             }
             
             "captureStreamStop" -> {
-                mUVCCameraViewFactory.captureStreamStop()
+                factory?.captureStreamStop()
                 result.success(null)
+            }
+            
+            "startPlayMic" -> {
+                result.success(factory?.startPlayMic() ?: false)
+            }
+            
+            "stopPlayMic" -> {
+                result.success(factory?.stopPlayMic() ?: false)
             }
             
             // Stream control
@@ -156,15 +183,15 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
             // Camera settings
             "getAllPreviewSizes" -> {
-               result.success(mUVCCameraViewFactory.getAllPreviewSizes())
+                result.success(factory?.getAllPreviewSizes())
             }
 
             "getCurrentCameraRequestParameters" -> {
-                result.success(mUVCCameraViewFactory.getCurrentCameraRequestParameters())
+                result.success(factory?.getCurrentCameraRequestParameters())
             }
 
             "updateResolution" -> {
-                mUVCCameraViewFactory.updateResolution(call.arguments)
+                factory?.updateResolution(call.arguments)
                 result.success(null)
             }
             
@@ -172,25 +199,21 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             "setCameraFeature" -> {
                 val feature = call.argument<String>("feature") ?: ""
                 val value = call.argument<Int>("value") ?: 0
-                val success = mUVCCameraViewFactory.setCameraFeature(feature, value)
-                result.success(success)
+                result.success(factory?.setCameraFeature(feature, value) ?: false)
             }
             
             "resetCameraFeature" -> {
                 val feature = call.argument<String>("feature") ?: ""
-                val success = mUVCCameraViewFactory.resetCameraFeature(feature)
-                result.success(success)
+                result.success(factory?.resetCameraFeature(feature) ?: false)
             }
             
             "getCameraFeature" -> {
                 val feature = call.argument<String>("feature") ?: ""
-                val value = mUVCCameraViewFactory.getCameraFeature(feature)
-                result.success(value)
+                result.success(factory?.getCameraFeature(feature))
             }
             
             "getAllCameraFeatures" -> {
-                val features = mUVCCameraViewFactory.getAllCameraFeatures()
-                result.success(features)
+                result.success(factory?.getAllCameraFeatures())
             }
 
             "getPlatformVersion" -> {

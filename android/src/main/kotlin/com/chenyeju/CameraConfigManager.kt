@@ -31,6 +31,7 @@ class CameraConfigManager {
     private var captureRawImage = false
     private var rawPreviewData = false
     private var aspectRatioShow = true
+    private var rotateType = RotateType.ANGLE_0
     
     // Handler for camera operations
     val cameraHandler = Handler(Looper.getMainLooper())
@@ -49,6 +50,7 @@ class CameraConfigManager {
             captureRawImage = (params["captureRawImage"] as? Boolean) ?: captureRawImage
             rawPreviewData = (params["rawPreviewData"] as? Boolean) ?: rawPreviewData
             aspectRatioShow = (params["aspectRatioShow"] as? Boolean) ?: aspectRatioShow
+            rotateType = (params["rotateType"] as? Number)?.toInt()?.let { toRotateType(it) } ?: rotateType
         }
     }
     
@@ -78,20 +80,43 @@ class CameraConfigManager {
     fun getPreviewSize(): PreviewSize {
         return PreviewSize(previewWidth, previewHeight)
     }
+
+    fun getAspectRatioShow(): Boolean = aspectRatioShow
+
+    /**
+     * Get display aspect size (width, height) for the view.
+     * When rotated 90/270, swap so the view keeps correct aspect and avoids distortion.
+     */
+    fun getDisplayAspectSize(): Pair<Int, Int> {
+        val isRotated = rotateType == RotateType.ANGLE_90 || rotateType == RotateType.ANGLE_270
+        return if (isRotated) Pair(previewHeight, previewWidth) else Pair(previewWidth, previewHeight)
+    }
     
     /**
      * Build camera request
      */
     fun buildCameraRequest(): CameraRequest {
+        val isRotated = rotateType == RotateType.ANGLE_90 || rotateType == RotateType.ANGLE_270
+        val requestPreviewWidth = if (isRotated) previewHeight else previewWidth
+        val requestPreviewHeight = if (isRotated) previewWidth else previewHeight
         return CameraRequest.Builder()
-            .setPreviewWidth(previewWidth)
-            .setPreviewHeight(previewHeight)
+            .setPreviewWidth(requestPreviewWidth)
+            .setPreviewHeight(requestPreviewHeight)
             .setRenderMode(CameraRequest.RenderMode.OPENGL)
-            .setDefaultRotateType(RotateType.ANGLE_0)
+            .setDefaultRotateType(rotateType)
             .setAudioSource(CameraRequest.AudioSource.SOURCE_SYS_MIC)
             .setAspectRatioShow(aspectRatioShow)
             .setCaptureRawImage(captureRawImage)
             .setRawPreviewData(rawPreviewData)
             .create()
     }
-} 
+
+    private fun toRotateType(value: Int): RotateType {
+        return when (value) {
+            90 -> RotateType.ANGLE_90
+            180 -> RotateType.ANGLE_180
+            270 -> RotateType.ANGLE_270
+            else -> RotateType.ANGLE_0
+        }
+    }
+}

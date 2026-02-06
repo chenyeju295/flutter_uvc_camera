@@ -19,11 +19,35 @@ class UVCCameraViewParamsEntity {
   ///  DEFAULT_BANDWIDTH = 1
   final double? bandwidthFactor;
 
+  /// preview width
+  final int? previewWidth;
+
+  /// preview height
+  final int? previewHeight;
+
+  /// whether to keep aspect ratio when rendering
+  final bool? aspectRatioShow;
+
+  /// capture raw image data
+  final bool? captureRawImage;
+
+  /// output raw preview data
+  final bool? rawPreviewData;
+
+  /// default rotation angle: 0, 90, 180, 270
+  final int? rotateType;
+
   const UVCCameraViewParamsEntity({
     this.minFps = 10,
     this.maxFps = 60,
     this.bandwidthFactor = 1.0,
     this.frameFormat = 1,
+    this.previewWidth,
+    this.previewHeight,
+    this.aspectRatioShow,
+    this.captureRawImage,
+    this.rawPreviewData,
+    this.rotateType,
   });
 
   Map<String, dynamic> toMap() {
@@ -31,7 +55,13 @@ class UVCCameraViewParamsEntity {
       "minFps": minFps,
       "maxFps": maxFps,
       "frameFormat": frameFormat,
-      "bandwidthFactor": bandwidthFactor
+      "bandwidthFactor": bandwidthFactor,
+      "previewWidth": previewWidth,
+      "previewHeight": previewHeight,
+      "aspectRatioShow": aspectRatioShow,
+      "captureRawImage": captureRawImage,
+      "rawPreviewData": rawPreviewData,
+      "rotateType": rotateType,
     };
   }
 }

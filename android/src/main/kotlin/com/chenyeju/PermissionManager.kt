@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
 
@@ -22,13 +23,24 @@ class PermissionManager {
                 context,
                 Manifest.permission.CAMERA
             )
-            val hasStoragePermission = PermissionChecker.checkSelfPermission(
+
+            val hasAudioPermission = PermissionChecker.checkSelfPermission(
                 context,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                Manifest.permission.RECORD_AUDIO
             )
-            
+
+            val hasStoragePermission = if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                PermissionChecker.checkSelfPermission(
+                    context,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) == PermissionChecker.PERMISSION_GRANTED
+            } else {
+                true
+            }
+
             return hasCameraPermission == PermissionChecker.PERMISSION_GRANTED
-                && hasStoragePermission == PermissionChecker.PERMISSION_GRANTED
+                && hasAudioPermission == PermissionChecker.PERMISSION_GRANTED
+                && hasStoragePermission
         }
         
         /**
@@ -43,13 +55,17 @@ class PermissionManager {
             if (hasRequiredPermissions(activity)) {
                 return true
             }
-            
+
+            val permissions = ArrayList<String>()
+            permissions.add(Manifest.permission.CAMERA)
+            permissions.add(Manifest.permission.RECORD_AUDIO)
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+
             ActivityCompat.requestPermissions(
                 activity,
-                arrayOf(
-                    Manifest.permission.CAMERA,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                ),
+                permissions.toTypedArray(),
                 PERMISSION_REQUEST_CODE
             )
             return false

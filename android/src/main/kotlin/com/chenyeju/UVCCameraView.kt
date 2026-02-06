@@ -117,21 +117,38 @@ internal class UVCCameraView(
     }
 
     fun initCamera() {
-        if (!PermissionManager.requestPermissionsIfNeeded(mActivity)) {
-            stateManager.updateState(CameraStateManager.CameraState.ERROR, "Permission denied")
-            return
-        }
-        
         stateManager.updateState(CameraStateManager.CameraState.CLOSED)
         val cameraView = AspectRatioTextureView(mContext)
         handleTextureView(cameraView)
         mCameraView = cameraView
+        applyDisplayAspectRatio(cameraView)
         cameraView.also { view ->
             mViewBinding.fragmentContainer
                 .apply {
                     removeAllViews()
                     addView(view, getViewLayoutParams(this))
                 }
+        }
+    }
+
+    /**
+     * Set aspect ratio on the view when aspectRatioShow is true to avoid distortion when rotated.
+     */
+    private fun applyDisplayAspectRatio(textureView: TextureView) {
+        if (!configManager.getAspectRatioShow()) return
+        val (w, h) = configManager.getDisplayAspectSize()
+        if (w <= 0 || h <= 0) return
+        try {
+            val method = textureView.javaClass.getMethod("setAspectRatio", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+            method.invoke(textureView, w, h)
+        } catch (e: Exception) {
+            try {
+                val ratio = w.toDouble() / h
+                val method = textureView.javaClass.getMethod("setAspectRatio", Double::class.javaPrimitiveType)
+                method.invoke(textureView, ratio)
+            } catch (e2: Exception) {
+                // Library may not expose setAspectRatio; render uses setAspectRatioShow from request
+            }
         }
     }
 
@@ -269,6 +286,10 @@ internal class UVCCameraView(
                 width: Int,
                 height: Int
             ) {
+                if (!PermissionManager.hasRequiredPermissions(mContext)) {
+                    PermissionManager.requestPermissionsIfNeeded(mActivity)
+                    return
+                }
                 registerMultiCamera()
                 checkCamera()
             }
@@ -300,6 +321,7 @@ internal class UVCCameraView(
     override fun onPermissionResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (PermissionManager.isPermissionGranted(requestCode, permissions, grantResults)) {
             registerMultiCamera()
+            checkCamera()
         } else {
             callFlutter("Permission denied")
             stateManager.updateState(CameraStateManager.CameraState.ERROR, "Permission denied")
@@ -670,5 +692,43 @@ internal class UVCCameraView(
                 }
             }
         })
+    }
+
+    fun startPlayMic(): Boolean {
+        if (!isCameraOpened()) {
+            callFlutter("Camera not open")
+            return false
+        }
+        val camera = getCurrentCamera() ?: run {
+            callFlutter("Camera not available")
+            return false
+        }
+        return invokeCameraMethod(camera, "startPlayMic")
+    }
+
+    fun stopPlayMic(): Boolean {
+        val camera = getCurrentCamera() ?: run {
+            callFlutter("Camera not available")
+            return false
+        }
+        return invokeCameraMethod(camera, "stopPlayMic")
+    }
+
+    private fun invokeCameraMethod(camera: Any, methodName: String): Boolean {
+        return try {
+            val method = camera.javaClass.methods.firstOrNull { it.name == methodName }
+            if (method == null) {
+                callFlutter("Method $methodName not supported by current camera implementation")
+                return false
+            }
+            val result = method.invoke(camera)
+            when (result) {
+                is Boolean -> result
+                else -> true
+            }
+        } catch (e: Exception) {
+            callFlutter("Failed to call $methodName: ${e.message}")
+            false
+        }
     }
 }
