@@ -1,11 +1,11 @@
 package com.chenyeju
 
-import io.flutter.plugin.common.MethodChannel
+import com.chenyeju.VideoStreamHandler
 
 /**
  * Camera state management for UVC cameras
  */
-class CameraStateManager(private val channel: MethodChannel) {
+class CameraStateManager(private val videoStreamHandler: VideoStreamHandler) {
 
     enum class CameraState {
         CLOSED,
@@ -22,14 +22,21 @@ class CameraStateManager(private val channel: MethodChannel) {
      */
     fun updateState(state: CameraState, message: String? = null) {
         currentState = state
-        val stateMessage = when (state) {
+        val stateName = when (state) {
             CameraState.CLOSED -> "CLOSED"
             CameraState.OPENING -> "OPENING"
             CameraState.OPENED -> "OPENED"
             CameraState.CLOSING -> "CLOSING"
-            CameraState.ERROR -> "ERROR${message?.let { ":$it" } ?: ""}"
+            CameraState.ERROR -> "ERROR"
         }
-        channel.invokeMethod("CameraState", stateMessage)
+        
+        val data = if (message != null) {
+            mapOf("msg" to message)
+        } else {
+            null
+        }
+        
+        videoStreamHandler.sendState(stateName, data)
     }
 
     /**

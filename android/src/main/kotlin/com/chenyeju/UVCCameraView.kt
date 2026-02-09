@@ -65,7 +65,7 @@ internal class UVCCameraView(
     }
     
     // New managers for better organization
-    private val stateManager = CameraStateManager(mChannel)
+    private val stateManager = CameraStateManager(videoStreamHandler)
     private val configManager = CameraConfigManager()
     private val featuresManager = CameraFeaturesManager(mChannel)
     
@@ -113,7 +113,7 @@ internal class UVCCameraView(
     }
 
     private fun setCameraERRORState(msg: String? = null) {
-        mChannel.invokeMethod("CameraState", "ERROR:$msg")
+        stateManager.updateState(CameraStateManager.CameraState.ERROR, msg)
     }
 
     fun initCamera() {
@@ -221,6 +221,7 @@ internal class UVCCameraView(
             override fun onDetachDec(device: UsbDevice?) {
                 mCameraMap.remove(device?.deviceId)?.apply {
                     setUsbControlBlock(null)
+                    stateManager.updateState(CameraStateManager.CameraState.CLOSED, "Device detached")
                 }
                 mRequestPermission.set(false)
                 try {

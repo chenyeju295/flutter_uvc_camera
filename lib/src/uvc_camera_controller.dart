@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
@@ -79,6 +78,7 @@ class UVCCameraController {
   MethodChannel? _methodChannel;
   EventChannel? _videoStreamChannel;
   StreamSubscription? _videoStreamSubscription;
+  final Completer<void> _viewReadyCompleter = Completer<void>();
 
   /// Initialize controller
   UVCCameraController() {
@@ -126,6 +126,13 @@ class UVCCameraController {
               if (onRecordingTimeCallback != null) {
                 onRecordingTimeCallback!(recordingEvent);
               }
+            } else if (['OPENED', 'CLOSED', 'ERROR', 'OPENING', 'CLOSING']
+                .contains(videoEvent.state)) {
+              // Handle camera lifecycle states from EventChannel
+              final msg = videoEvent.data?['msg'] as String?;
+              final stateStr =
+                  msg != null ? "${videoEvent.state}:$msg" : videoEvent.state;
+              _setCameraState(stateStr);
             } else if (onStreamStateCallback != null) {
               onStreamStateCallback!(videoEvent);
             }
@@ -194,25 +201,26 @@ class UVCCameraController {
         break;
 
       case "CameraState":
-        _setCameraState(call.arguments.toString());
+        final state = call.arguments.toString();
+        // Only handle VIEW_READY from MethodChannel as it's a critical initialization signal
+        if (state == "VIEW_READY") {
+          _setCameraState(state);
+        }
         break;
     }
   }
 
   /// Initialize camera with better timing
   Future<void> initializeCamera() async {
-    // Give some time for the platform view to initialize
-    await Future.delayed(const Duration(milliseconds: 100));
-
     try {
-      await _methodChannel?.invokeMethod('initializeCamera');
+      await _invokeMethodWhenReady('initializeCamera');
       debugPrint("Camera initialized successfully");
     } catch (e) {
       debugPrint("Error initializing camera: $e");
       // Retry once if failed
       await Future.delayed(const Duration(milliseconds: 300));
       try {
-        await _methodChannel?.invokeMethod('initializeCamera');
+        await _invokeMethodWhenReady('initializeCamera');
         debugPrint("Camera initialized successfully on retry");
       } catch (e) {
         debugPrint("Error initializing camera on retry: $e");
@@ -223,7 +231,7 @@ class UVCCameraController {
   /// Open UVC camera
   Future<void> openUVCCamera() async {
     debugPrint("openUVCCamera");
-    await _methodChannel?.invokeMethod('openUVCCamera');
+    await _invokeMethodWhenReady('openUVCCamera');
   }
 
   /// Start capture stream
@@ -252,7 +260,7 @@ class UVCCameraController {
 
   /// Start camera preview
   Future<void> startCamera() async {
-    await _methodChannel?.invokeMethod('startCamera');
+    await openUVCCamera();
   }
 
   /// 设置视频帧率限制
@@ -397,6 +405,12 @@ class UVCCameraController {
   }
 
   void _setCameraState(String state) {
+    if (state == "VIEW_READY") {
+      if (! _viewReadyCompleter.isCompleted) {
+        _viewReadyCompleter.complete();
+      }
+      return;
+    }
     debugPrint("Camera: $state");
     switch (state) {
       case "OPENED":
@@ -416,6 +430,23 @@ class UVCCameraController {
         }
         break;
     }
+  }
+
+  Future<void> _waitForViewReady() async {
+    if (_viewReadyCompleter.isCompleted) {
+      return;
+    }
+    try {
+      await _viewReadyCompleter.future
+          .timeout(const Duration(seconds: 2));
+    } catch (_) {
+      // Continue without blocking if the view-ready event is late or missing.
+    }
+  }
+
+  Future<T?> _invokeMethodWhenReady<T>(String method, [dynamic arguments]) async {
+    await _waitForViewReady();
+    return _methodChannel?.invokeMethod<T>(method, arguments);
   }
 
   void _takePictureSuccess(String? result) {

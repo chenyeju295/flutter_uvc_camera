@@ -35,6 +35,7 @@ import com.jiangdg.ausbc.utils.CameraUtils
 import com.jiangdg.ausbc.utils.Logger
 import com.jiangdg.ausbc.utils.MediaUtils
 import com.jiangdg.ausbc.utils.Utils
+import com.jiangdg.ausbc.widget.IAspectRatio
 import com.jiangdg.uvc.IFrameCallback
 import com.jiangdg.uvc.UVCCamera
 import java.io.File
@@ -191,6 +192,11 @@ class CameraUVC(ctx: Context, device: UsbDevice) : MultiCameraClient.ICamera(ctx
                 return
             }
         }
+        // update aspect ratio with final preview size to avoid distortion
+        if (cameraView is IAspectRatio && mCameraRequest!!.isAspectRatioShow) {
+            cameraView.setAspectRatio(previewSize.width, previewSize.height)
+        }
+
         // if not opengl render or opengl render with preview callback
         // there should opened
         if (! isNeedGLESRender || mCameraRequest!!.isRawPreviewData || mCameraRequest!!.isCaptureRawImage) {

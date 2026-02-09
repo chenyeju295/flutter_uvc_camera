@@ -43,7 +43,8 @@ LOCAL_MODULE := uvc
 LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/.. \
 	$(LOCAL_PATH)/include \
-	$(LOCAL_PATH)/include/libuvc
+	$(LOCAL_PATH)/include/libuvc \
+	$(LOCAL_PATH)/../../libjpeg-turbo
 
 LOCAL_EXPORT_C_INCLUDES := \
 	$(LOCAL_PATH)/ \
@@ -55,6 +56,7 @@ LOCAL_CFLAGS += -DANDROID_NDK
 LOCAL_CFLAGS += -DUVC_DEBUGGING
 
 LOCAL_EXPORT_LDLIBS := -llog
+LOCAL_LDLIBS := -llog
 
 LOCAL_SHARED_LIBRARIES += jpeg-turbo1500
 LOCAL_SHARED_LIBRARIES += usb100

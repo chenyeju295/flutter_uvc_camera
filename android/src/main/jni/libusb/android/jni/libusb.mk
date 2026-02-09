@@ -58,5 +58,6 @@ LOCAL_CFLAGS += -DACCESS_RAW_DESCRIPTORS
 LOCAL_CFLAGS += -O3 -fstrict-aliasing -fprefetch-loop-arrays
 
 LOCAL_EXPORT_LDLIBS += -llog
+LOCAL_LDLIBS := -llog
 
 include $(BUILD_SHARED_LIBRARY)

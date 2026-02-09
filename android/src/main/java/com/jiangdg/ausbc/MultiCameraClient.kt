@@ -317,12 +317,19 @@ class MultiCameraClient(ctx: Context, callback: IDeviceConnectCallBack?) {
                         // use opengl render
                         // if surface is null, force off screen render whatever mode
                         // and use init preview size（measure size） for render size
-                        val measureSize = try {
-                            mSizeChangedFuture = SettableFuture()
-                            mSizeChangedFuture?.get(2000, TimeUnit.MILLISECONDS)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            null
+                        val surfaceWidth = (view as? IAspectRatio)?.getSurfaceWidth() ?: 0
+                        val surfaceHeight = (view as? IAspectRatio)?.getSurfaceHeight() ?: 0
+                        val shouldWaitForMeasure = surfaceWidth <= 0 || surfaceHeight <= 0
+                        val measureSize = if (shouldWaitForMeasure) {
+                            try {
+                                mSizeChangedFuture = SettableFuture()
+                                mSizeChangedFuture?.get(SURFACE_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                null
+                            }
+                        } else {
+                            Pair(surfaceWidth, surfaceHeight)
                         }
                         Logger.i(TAG, "surface measure size $measureSize")
                         mCameraRequest!!.renderMode = CameraRequest.RenderMode.OPENGL
@@ -1006,5 +1013,6 @@ class MultiCameraClient(ctx: Context, callback: IDeviceConnectCallBack?) {
         private const val DEFAULT_PREVIEW_HEIGHT = 480
         const val MAX_NV21_DATA = 5
         const val CAPTURE_TIMES_OUT_SEC = 3L
+        private const val SURFACE_WAIT_TIMEOUT_MS = 300L
     }
 }

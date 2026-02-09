@@ -18,6 +18,7 @@
  * @author Created by jiangdg on 2022/2/18
  */
 #include "proxy_yuv.h"
+#include <cstring>
 
 void yuv420spToNv21(JNIEnv *env, jobject instance, jbyteArray data, jint width, jint height) {
     if(! data || width == 0 || height == 0) {
@@ -29,7 +30,7 @@ void yuv420spToNv21(JNIEnv *env, jobject instance, jbyteArray data, jint width, 
     char *dest = (char *)malloc(srcLen);
     yuv420spToNv21Internal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
-    env->ReleaseByteArrayElements(data, srcData, 0);
+    env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
     free(dest);
 }
 
@@ -43,7 +44,7 @@ void nv21ToYuv420sp(JNIEnv *env, jobject instance, jbyteArray data, jint width, 
     char *dest = (char *)malloc(srcLen);
     nv21ToYuv420spInternal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
-    env->ReleaseByteArrayElements(data, srcData, 0);
+    env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
     free(dest);
 }
 
@@ -57,7 +58,7 @@ void nv21ToYuv420spWithMirror(JNIEnv *env, jobject instance, jbyteArray data, ji
     char *dest = (char *)malloc(srcLen);
     nv21ToYuv420spWithMirrorInternal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
-    env->ReleaseByteArrayElements(data, srcData, 0);
+    env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
     free(dest);
 }
 
@@ -71,7 +72,7 @@ void nv21ToYuv420p(JNIEnv *env, jobject instance, jbyteArray data, jint width, j
     char *dest = (char *)malloc(srcLen);
     nv21ToYuv420pInternal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
-    env->ReleaseByteArrayElements(data, srcData, 0);
+    env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
     free(dest);
 }
 
@@ -85,7 +86,7 @@ void nv21ToYuv420pWithMirror(JNIEnv *env, jobject instance, jbyteArray data, jin
     char *dest = (char *)malloc(srcLen);
     nv21ToYuv420pWithMirrorInternal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
-    env->ReleaseByteArrayElements(data, srcData, 0);
+    env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
     free(dest);
 }
 
@@ -148,12 +149,14 @@ void nativeRotateNV21(JNIEnv *env, jobject instance, jbyteArray j_srcArr, jint w
                 k +=2;
             }
         }
+    } else {
+        memcpy(c_tmp, c_srcArr, srcLen);
     }
 
     // 将c_tmp的数据覆盖到原数组j_srcArr
     env->SetByteArrayRegion(j_srcArr,0,srcLen,(jbyte *)c_tmp);
     // 释放资源
-    env->ReleaseByteArrayElements(j_srcArr, c_srcArr, JNI_FALSE);
+    env->ReleaseByteArrayElements(j_srcArr, c_srcArr, JNI_ABORT);
     // 释放临时内存
     free(c_tmp);
 }

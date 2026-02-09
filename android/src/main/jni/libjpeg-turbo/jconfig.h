@@ -1,50 +1,89 @@
-/* jconfig.h.  Generated automatically by configure.  */
-/* jconfig.cfg.  Generated from jconfig.cfg.in by configure.  */
-/* jconfig.cfg.in.  Pre-configuration header file for libjpeg-turbo.  */
+/* jconfig.h.  Generated from jconfig.h.in by configure.  */
+/* Version ID for the JPEG library.
+ * Might be useful for tests like "#if JPEG_LIB_VERSION >= 60".
+ */
+#define JPEG_LIB_VERSION 62
 
-#define HAVE_PROTOTYPES 1
-#define HAVE_UNSIGNED_CHAR 1
-#define HAVE_UNSIGNED_SHORT 1
-#undef void
-#undef const
-#undef CHAR_IS_UNSIGNED
+/* libjpeg-turbo version */
+#define LIBJPEG_TURBO_VERSION 1.5.0
+
+/* Support arithmetic encoding */
+#define C_ARITH_CODING_SUPPORTED 1
+
+/* Support arithmetic decoding */
+#define D_ARITH_CODING_SUPPORTED 1
+
+/*
+ * Define BITS_IN_JSAMPLE as either
+ *   8   for 8-bit sample values (the usual setting)
+ *   12  for 12-bit sample values
+ * Only 8 and 12 are legal data precisions for lossy JPEG according to the
+ * JPEG standard, and the IJG code does not support anything else!
+ * We do not support run-time selection of data precision, sorry.
+ */
+
+#define BITS_IN_JSAMPLE  8      /* use 8 or 12 */
+
+/* Define to 1 if you have the <locale.h> header file. */
+#define HAVE_LOCALE_H 1
+
+/* Define to 1 if you have the <stddef.h> header file. */
 #define HAVE_STDDEF_H 1
+
+/* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
-#undef NEED_BSD_STRINGS
-#undef NEED_SYS_TYPES_H
-#undef NEED_FAR_POINTERS
-#undef NEED_SHORT_EXTERNAL_NAMES
-#undef INCOMPLETE_TYPES_BROKEN
 
-/* Define "boolean" as unsigned char, not int, per Windows custom */
-#ifndef __RPCNDR_H__		/* don't conflict if rpcndr.h already read */
-typedef unsigned char boolean;
+/* Define to 1 if the system has the type `unsigned char'. */
+#define HAVE_UNSIGNED_CHAR 1
+
+/* Define to 1 if the system has the type `unsigned short'. */
+#define HAVE_UNSIGNED_SHORT 1
+
+/* Compiler does not support pointers to undefined structures. */
+/* #undef INCOMPLETE_TYPES_BROKEN */
+
+/* Support in-memory source/destination managers */
+#define MEM_SRCDST_SUPPORTED 1
+
+/* Define if you have BSD-like bzero and bcopy in <strings.h> rather than
+   memset/memcpy in <string.h>. */
+/* #undef NEED_BSD_STRINGS */
+
+/* Define if you need to include <sys/types.h> to get size_t. */
+#define NEED_SYS_TYPES_H 1
+
+/* Define if your (broken) compiler shifts signed values as if they were
+   unsigned. */
+/* #undef RIGHT_SHIFT_IS_UNSIGNED */
+
+/* Use accelerated SIMD routines. */
+#define WITH_SIMD 1
+
+/* Define to 1 if type `char' is unsigned and you are not using gcc.  */
+#ifndef __CHAR_UNSIGNED__
+/* # undef __CHAR_UNSIGNED__ */
 #endif
-#define HAVE_BOOLEAN		/* prevent jmorecfg.h from redefining it */
 
-/* Define "INT32" as int, not long, per Windows custom */
-#if !(defined(_BASETSD_H_) || defined(_BASETSD_H))   /* don't conflict if basetsd.h already read */
-typedef long INT32;
-#endif
-#define XMD_H                   /* prevent jmorecfg.h from redefining it */
+#define HAVE_DLFCN_H 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_MEMCPY 1
+#define HAVE_MEMORY_H 1
+#define HAVE_MEMSET 1
+#define HAVE_STDINT_H 1
+#define HAVE_STRINGS_H 1
+#define HAVE_STRING_H 1
+#define HAVE_SYS_STAT_H 1
+#define HAVE_SYS_TYPES_H 1
+#define HAVE_UNISTD_H 1
+#define STDC_HEADERS 1
 
-#ifdef JPEG_INTERNALS
-#undef RIGHT_SHIFT_IS_UNSIGNED
-#define INLINE __inline__
-/* These are for configuring the JPEG memory manager. */
-#undef DEFAULT_MAX_MEM
-#undef NO_MKTEMP
-#endif
+/* Define to empty if `const' does not conform to ANSI C. */
+/* #undef const */
 
-#ifdef JPEG_CJPEG_DJPEG
-#define BMP_SUPPORTED		/* BMP image file format */
-#define GIF_SUPPORTED		/* GIF image file format */
-#define PPM_SUPPORTED		/* PBMPLUS PPM/PGM image file format */
-#undef RLE_SUPPORTED		/* Utah RLE image file format */
-#define TARGA_SUPPORTED		/* Targa image file format */
-#undef TWO_FILE_COMMANDLINE
-#undef NEED_SIGNAL_CATCHER
-#undef DONT_USE_B_MODE
-/* Define this if you want percent-done progress reports from cjpeg/djpeg. */
-#undef PROGRESS_REPORT
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* #undef size_t */
+
+/* Additional compatibility for current build */
+#ifndef INT16
+typedef short INT16;
 #endif
