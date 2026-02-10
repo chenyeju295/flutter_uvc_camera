@@ -7,7 +7,7 @@ abstract class VideoStreamEvent {
   VideoStreamEvent(this.type);
 
   factory VideoStreamEvent.fromMap(Map<dynamic, dynamic> map) {
-    final type = map['type'] as String;
+    final type = map['type']?.toString() ?? 'UNKNOWN';
 
     switch (type) {
       case 'H264':
@@ -37,12 +37,17 @@ class VideoFrameEvent extends VideoStreamEvent {
   }) : super(type);
 
   factory VideoFrameEvent.fromMap(Map<dynamic, dynamic> map) {
+    final rawData = map['data'];
+    final data = rawData is Uint8List ? rawData : Uint8List(0);
+    final timestamp = _parseIntOrZero(map['timestamp']);
+    final size = _parseIntOrZero(map['size']);
+    final fps = _parseIntOrZero(map['fps']);
     return VideoFrameEvent(
-      type: map['type'] as String,
-      data: map['data'] as Uint8List,
-      timestamp: map['timestamp'] as int,
-      size: map['size'] as int,
-      fps: map['fps'] as int,
+      type: map['type']?.toString() ?? 'UNKNOWN',
+      data: data,
+      timestamp: timestamp,
+      size: size,
+      fps: fps,
     );
   }
 }
@@ -58,7 +63,7 @@ class StateEvent extends VideoStreamEvent {
   }) : super('STATE');
 
   factory StateEvent.fromMap(Map<dynamic, dynamic> map) {
-    final state = map['state'] as String;
+    final state = map['state']?.toString() ?? 'UNKNOWN';
 
     // 提取其他数据
     final rawData = Map<String, dynamic>.from(map);
@@ -94,9 +99,9 @@ class RecordingTimeEvent {
     }
 
     return RecordingTimeEvent(
-      elapsedMillis: event.data!['elapsedMillis'] as int,
-      formattedTime: event.data!['formattedTime'] as String,
-      isFinal: event.data!['isFinal'] as bool,
+      elapsedMillis: _parseIntOrZero(event.data!['elapsedMillis']),
+      formattedTime: event.data!['formattedTime']?.toString() ?? '00:00:00',
+      isFinal: event.data!['isFinal'] == true,
     );
   }
 }
@@ -104,4 +109,10 @@ class RecordingTimeEvent {
 /// 未知事件
 class UnknownEvent extends VideoStreamEvent {
   UnknownEvent(String type) : super(type);
+}
+
+int _parseIntOrZero(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
 }

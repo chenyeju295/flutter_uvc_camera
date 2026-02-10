@@ -26,8 +26,17 @@ void yuv420spToNv21(JNIEnv *env, jobject instance, jbyteArray data, jint width, 
         return;
     }
     jbyte *srcData = env->GetByteArrayElements(data, JNI_FALSE);
+    if (!srcData) {
+        LOGE("GetByteArrayElements failed in yuv420spToNv21");
+        return;
+    }
     jsize srcLen = env->GetArrayLength(data);
     char *dest = (char *)malloc(srcLen);
+    if (!dest) {
+        env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
+        LOGE("malloc failed in yuv420spToNv21");
+        return;
+    }
     yuv420spToNv21Internal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
     env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
@@ -40,8 +49,17 @@ void nv21ToYuv420sp(JNIEnv *env, jobject instance, jbyteArray data, jint width, 
         return;
     }
     jbyte *srcData = env->GetByteArrayElements(data, JNI_FALSE);
+    if (!srcData) {
+        LOGE("GetByteArrayElements failed in nv21ToYuv420sp");
+        return;
+    }
     jsize srcLen = env->GetArrayLength(data);
     char *dest = (char *)malloc(srcLen);
+    if (!dest) {
+        env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
+        LOGE("malloc failed in nv21ToYuv420sp");
+        return;
+    }
     nv21ToYuv420spInternal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
     env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
@@ -54,8 +72,17 @@ void nv21ToYuv420spWithMirror(JNIEnv *env, jobject instance, jbyteArray data, ji
         return;
     }
     jbyte *srcData = env->GetByteArrayElements(data, JNI_FALSE);
+    if (!srcData) {
+        LOGE("GetByteArrayElements failed in nv21ToYuv420spWithMirror");
+        return;
+    }
     jsize srcLen = env->GetArrayLength(data);
     char *dest = (char *)malloc(srcLen);
+    if (!dest) {
+        env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
+        LOGE("malloc failed in nv21ToYuv420spWithMirror");
+        return;
+    }
     nv21ToYuv420spWithMirrorInternal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
     env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
@@ -68,8 +95,17 @@ void nv21ToYuv420p(JNIEnv *env, jobject instance, jbyteArray data, jint width, j
         return;
     }
     jbyte *srcData = env->GetByteArrayElements(data, JNI_FALSE);
+    if (!srcData) {
+        LOGE("GetByteArrayElements failed in nv21ToYuv420p");
+        return;
+    }
     jsize srcLen = env->GetArrayLength(data);
     char *dest = (char *)malloc(srcLen);
+    if (!dest) {
+        env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
+        LOGE("malloc failed in nv21ToYuv420p");
+        return;
+    }
     nv21ToYuv420pInternal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
     env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
@@ -82,8 +118,17 @@ void nv21ToYuv420pWithMirror(JNIEnv *env, jobject instance, jbyteArray data, jin
         return;
     }
     jbyte *srcData = env->GetByteArrayElements(data, JNI_FALSE);
+    if (!srcData) {
+        LOGE("GetByteArrayElements failed in nv21ToYuv420pWithMirror");
+        return;
+    }
     jsize srcLen = env->GetArrayLength(data);
     char *dest = (char *)malloc(srcLen);
+    if (!dest) {
+        env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
+        LOGE("malloc failed in nv21ToYuv420pWithMirror");
+        return;
+    }
     nv21ToYuv420pWithMirrorInternal((char *)srcData,dest, width, height);
     env->SetByteArrayRegion(data,0,srcLen,(jbyte *)dest);
     env->ReleaseByteArrayElements(data, srcData, JNI_ABORT);
@@ -96,6 +141,10 @@ void nativeRotateNV21(JNIEnv *env, jobject instance, jbyteArray j_srcArr, jint w
         return;
     }
     auto * c_srcArr = (jbyte*) env->GetByteArrayElements(j_srcArr, JNI_FALSE);
+    if (!c_srcArr) {
+        LOGE("GetByteArrayElements failed in nativeRotateNV21");
+        return;
+    }
     jsize srcLen = env->GetArrayLength(j_srcArr);
     jint wh = width * height;
     jint frameSize =wh * 3 / 2;
@@ -103,6 +152,11 @@ void nativeRotateNV21(JNIEnv *env, jobject instance, jbyteArray j_srcArr, jint w
     int uLength = yLength / 4;
     // 开辟一段临时内存空间
     char *c_tmp = (char *)malloc(srcLen);
+    if (!c_tmp) {
+        env->ReleaseByteArrayElements(j_srcArr, c_srcArr, JNI_ABORT);
+        LOGE("malloc failed in nativeRotateNV21");
+        return;
+    }
 
     int k = 0,i=0,j=0;
     if(rotateDegree == 90){

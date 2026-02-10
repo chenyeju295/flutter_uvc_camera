@@ -16,6 +16,10 @@ class CameraFeaturesManager(
         if (camera == null) return false
         
         when (feature.lowercase()) {
+            "autoexposure" -> camera.setAutoExposure(value > 0)
+            "exposuremode" -> camera.setExposureMode(value)
+            "exposurepriority" -> camera.setExposurePriority(value)
+            "exposure" -> camera.setExposure(value)
             "autofocus" -> camera.setAutoFocus(value > 0)
             "autowhitebalance" -> camera.setAutoWhiteBalance(value > 0)
             "zoom" -> camera.setZoom(value)
@@ -38,6 +42,10 @@ class CameraFeaturesManager(
         if (camera == null) return false
         
         when (feature.lowercase()) {
+            "autoexposure" -> camera.setAutoExposure(true)
+            "exposuremode" -> camera.resetExposureMode()
+            "exposurepriority" -> camera.resetExposurePriority()
+            "exposure" -> camera.resetExposure()
             "autofocus" -> camera.resetAutoFocus()
             "zoom" -> camera.resetZoom()
             "brightness" -> camera.resetBrightness()
@@ -59,6 +67,10 @@ class CameraFeaturesManager(
         if (camera == null) return null
         
         return when (feature.lowercase()) {
+            "autoexposure" -> if (camera.getAutoExposure() == true) 1 else 0
+            "exposuremode" -> camera.getExposureMode()
+            "exposurepriority" -> camera.getExposurePriority()
+            "exposure" -> camera.getExposure()
             "autofocus" -> if (camera.getAutoFocus() == true) 1 else 0
             "autowhitebalance" -> if (camera.getAutoWhiteBalance() == true) 1 else 0
             "zoom" -> camera.getZoom()
@@ -80,6 +92,10 @@ class CameraFeaturesManager(
         if (camera == null) return "{}"
         
         val features = mapOf(
+            "autoExposure" to (camera.getAutoExposure() == true),
+            "exposureMode" to camera.getExposureMode(),
+            "exposurePriority" to camera.getExposurePriority(),
+            "exposure" to camera.getExposure(),
             "autoFocus" to (camera.getAutoFocus() == true),
             "autoWhiteBalance" to (camera.getAutoWhiteBalance() == true),
             "zoom" to camera.getZoom(),

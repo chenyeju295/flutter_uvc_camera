@@ -15,6 +15,7 @@ class CameraStateManager(private val videoStreamHandler: VideoStreamHandler) {
         ERROR
     }
 
+    @Volatile
     private var currentState = CameraState.CLOSED
     
     /**

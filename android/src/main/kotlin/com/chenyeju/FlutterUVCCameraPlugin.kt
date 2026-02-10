@@ -129,6 +129,26 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 )
             }
 
+            "takePictureBytes" -> {
+                if (factory == null) {
+                    result.error("NOT_READY", "Platform view not created yet", null)
+                    return@onMethodCall
+                }
+                factory.takePictureBytes(object : com.jiangdg.ausbc.callback.IImageDataCallBack {
+                    override fun onBegin() {
+                        // No-op for bytes capture
+                    }
+
+                    override fun onComplete(data: ByteArray) {
+                        result.success(data)
+                    }
+
+                    override fun onError(error: String) {
+                        result.error("CAPTURE_ERROR", error, null)
+                    }
+                })
+            }
+
             "captureVideo" -> {
                 if (factory == null) {
                     result.error("NOT_READY", "Platform view not created yet", null)

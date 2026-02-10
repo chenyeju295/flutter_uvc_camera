@@ -54,6 +54,10 @@ class UVCCameraViewFactory(
     fun takePicture(callback: UVCStringCallback) {
         cameraView?.takePicture(callback)
     }
+
+    fun takePictureBytes(callback: com.jiangdg.ausbc.callback.IImageDataCallBack) {
+        cameraView?.takePictureBytes(callback)
+    }
     
     fun captureVideo(callback: UVCStringCallback) {
         cameraView?.captureVideo(callback)

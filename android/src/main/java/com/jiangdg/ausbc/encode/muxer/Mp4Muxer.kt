@@ -164,28 +164,38 @@ class Mp4Muxer(
             if (bufferInfo.size <= 0) {
                 return
             }
-            val index = if (isVideo) {
+            val pts = if (isVideo) {
                 if (mVideoPts == 0L) {
                     mVideoPts = bufferInfo.presentationTimeUs
                 }
-                bufferInfo.presentationTimeUs = bufferInfo.presentationTimeUs - mVideoPts
-                mVideoTrackerIndex
+                bufferInfo.presentationTimeUs - mVideoPts
             } else {
                 if (mAudioPts == 0L) {
                     mAudioPts = bufferInfo.presentationTimeUs
                 }
-                bufferInfo.presentationTimeUs = bufferInfo.presentationTimeUs - mAudioPts
-                mAudioTrackerIndex
+                bufferInfo.presentationTimeUs - mAudioPts
             }
-            outputBuffer.position(bufferInfo.offset)
-            outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
-            mMediaMuxer?.writeSampleData(index, outputBuffer, bufferInfo)
+            val index = if (isVideo) mVideoTrackerIndex else mAudioTrackerIndex
+
+            val duplicated = outputBuffer.duplicate()
+            duplicated.position(bufferInfo.offset)
+            duplicated.limit(bufferInfo.offset + bufferInfo.size)
+            val bufferCopy = ByteBuffer.allocateDirect(bufferInfo.size)
+            bufferCopy.put(duplicated)
+            bufferCopy.flip()
+
+            val infoCopy = MediaCodec.BufferInfo().apply {
+                set(0, bufferInfo.size, pts, bufferInfo.flags)
+            }
+
+            mMediaMuxer?.writeSampleData(index, bufferCopy, infoCopy)
             saveNewFileIfNeed()
         } catch (e: Exception) {
             Logger.e(TAG, "pumpStream failed, err = ${e.localizedMessage}", e)
         }
     }
 
+    @Synchronized
     private fun saveNewFileIfNeed() {
         try {
             val endMillis = System.currentTimeMillis()
@@ -276,6 +286,7 @@ class Mp4Muxer(
     }
 
 
+    @Synchronized
     fun isMuxerStarter() = mVideoTrackerIndex != -1 && (mAudioTrackerIndex != -1 || isVideoOnly)
 
     private fun getLocalVideoDuration(filePath: String?): Long {

@@ -2,6 +2,10 @@ part of flutter_uvc_camera;
 
 /// Camera features for UVC cameras
 class CameraFeatures {
+  final bool? autoExposure;
+  final int? exposureMode;
+  final int? exposurePriority;
+  final int? exposure;
   final bool? autoFocus;
   final bool? autoWhiteBalance;
   final int? zoom;
@@ -14,6 +18,10 @@ class CameraFeatures {
   final int? hue;
 
   CameraFeatures({
+    this.autoExposure,
+    this.exposureMode,
+    this.exposurePriority,
+    this.exposure,
     this.autoFocus,
     this.autoWhiteBalance,
     this.zoom,
@@ -28,6 +36,10 @@ class CameraFeatures {
 
   factory CameraFeatures.fromJson(Map<String, dynamic> json) {
     return CameraFeatures(
+      autoExposure: json['autoExposure'],
+      exposureMode: json['exposureMode'],
+      exposurePriority: json['exposurePriority'],
+      exposure: json['exposure'],
       autoFocus: json['autoFocus'],
       autoWhiteBalance: json['autoWhiteBalance'],
       zoom: json['zoom'],
@@ -43,6 +55,10 @@ class CameraFeatures {
 
   Map<String, dynamic> toJson() {
     return {
+      'autoExposure': autoExposure,
+      'exposureMode': exposureMode,
+      'exposurePriority': exposurePriority,
+      'exposure': exposure,
       'autoFocus': autoFocus,
       'autoWhiteBalance': autoWhiteBalance,
       'zoom': zoom,
@@ -58,7 +74,9 @@ class CameraFeatures {
 
   @override
   String toString() {
-    return 'CameraFeatures(autoFocus: $autoFocus, autoWhiteBalance: $autoWhiteBalance, '
+    return 'CameraFeatures(autoExposure: $autoExposure, exposureMode: $exposureMode, '
+        'exposurePriority: $exposurePriority, exposure: $exposure, '
+        'autoFocus: $autoFocus, autoWhiteBalance: $autoWhiteBalance, '
         'zoom: $zoom, brightness: $brightness, contrast: $contrast, '
         'saturation: $saturation, sharpness: $sharpness, gain: $gain, '
         'gamma: $gamma, hue: $hue)';

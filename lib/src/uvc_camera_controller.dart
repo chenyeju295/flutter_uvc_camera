@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -64,6 +65,9 @@ class UVCCameraController {
   /// 获取当前录制时间格式化字符串
   String get currentRecordingTimeFormatted => _currentRecordingTimeFormatted;
 
+  /// Whether recording is active
+  bool get isRecording => _isRecording;
+
   List<PreviewSize> _previewSizes = [];
 
   /// Get available preview sizes
@@ -79,6 +83,8 @@ class UVCCameraController {
   EventChannel? _videoStreamChannel;
   StreamSubscription? _videoStreamSubscription;
   final Completer<void> _viewReadyCompleter = Completer<void>();
+  int _streamErrorCount = 0;
+  bool _isRecording = false;
 
   /// Initialize controller
   UVCCameraController() {
@@ -100,10 +106,11 @@ class UVCCameraController {
 
   /// 处理视频流事件
   void _handleVideoStreamEvent(dynamic event) {
-    if (event == null) return;
+    if (event == null || event is! Map) return;
 
     try {
-      final videoEvent = VideoStreamEvent.fromMap(event);
+      final videoEvent =
+          VideoStreamEvent.fromMap(Map<dynamic, dynamic>.from(event));
 
       // Add more robust error handling with retry backoff
       // Use microtask to avoid blocking the main thread
@@ -122,6 +129,7 @@ class UVCCameraController {
                   RecordingTimeEvent.fromStateEvent(videoEvent);
               _currentRecordingTimeMs = recordingEvent.elapsedMillis;
               _currentRecordingTimeFormatted = recordingEvent.formattedTime;
+              _isRecording = !recordingEvent.isFinal;
 
               if (onRecordingTimeCallback != null) {
                 onRecordingTimeCallback!(recordingEvent);
@@ -137,6 +145,7 @@ class UVCCameraController {
               onStreamStateCallback!(videoEvent);
             }
           }
+          _streamErrorCount = 0;
         } catch (e) {
           debugPrint("Error processing video event in microtask: $e");
         }
@@ -150,11 +159,22 @@ class UVCCameraController {
   void _handleVideoStreamError(dynamic error) {
     // Count consecutive errors to implement exponential backoff if needed
     debugPrint("Video stream error: $error");
+    _streamErrorCount += 1;
+    _reconnectVideoStreamChannel();
 
     // If error involves buffer access issues, we might need to reduce frame rate
     if (error.toString().contains("buffer is inaccessible")) {
       _reduceFrameRate();
     }
+  }
+
+  void _reconnectVideoStreamChannel() {
+    _videoStreamSubscription?.cancel();
+    _videoStreamSubscription = null;
+    final retryDelayMs = (_streamErrorCount * 500).clamp(500, 5000);
+    Future.delayed(Duration(milliseconds: retryDelayMs), () {
+      _initVideoStreamChannel();
+    });
   }
 
   /// 自动降低帧率以应对性能问题
@@ -193,11 +213,16 @@ class UVCCameraController {
       case "callFlutter":
         debugPrint('------> Received from Android：${call.arguments}');
         _callStrings.add(call.arguments.toString());
-        msgCallback?.call(call.arguments['msg']);
+        final args = call.arguments;
+        if (args is Map && args['msg'] is String) {
+          msgCallback?.call(args['msg'] as String);
+        }
         break;
 
       case "takePictureSuccess":
-        _takePictureSuccess(call.arguments);
+        if (call.arguments is String) {
+          _takePictureSuccess(call.arguments as String);
+        }
         break;
 
       case "CameraState":
@@ -231,31 +256,53 @@ class UVCCameraController {
   /// Open UVC camera
   Future<void> openUVCCamera() async {
     debugPrint("openUVCCamera");
-    await _invokeMethodWhenReady('openUVCCamera');
+    try {
+      await _invokeMethodWhenReady('openUVCCamera');
+    } catch (e) {
+      debugPrint("Error opening UVC camera: $e");
+    }
   }
 
   /// Start capture stream
-  void captureStreamStart() {
+  Future<void> captureStreamStart() async {
     debugPrint("Starting camera stream");
-    _methodChannel?.invokeMethod('captureStreamStart');
+    try {
+      await _invokeMethodWhenReady('captureStreamStart');
+    } catch (e) {
+      debugPrint("Error starting capture stream: $e");
+    }
   }
 
   /// Stop capture stream
-  void captureStreamStop() {
+  Future<void> captureStreamStop() async {
     debugPrint("Stopping camera stream");
-    _methodChannel?.invokeMethod('captureStreamStop');
+    try {
+      await _invokeMethodWhenReady('captureStreamStop');
+    } catch (e) {
+      debugPrint("Error stopping capture stream: $e");
+    }
   }
 
   /// Start playing mic audio from UVC device (Android only)
   Future<bool> startPlayMic() async {
-    final result = await _methodChannel?.invokeMethod('startPlayMic');
-    return result == true;
+    try {
+      final result = await _invokeMethodWhenReady<bool>('startPlayMic');
+      return result == true;
+    } catch (e) {
+      debugPrint("Error starting mic playback: $e");
+      return false;
+    }
   }
 
   /// Stop playing mic audio from UVC device (Android only)
   Future<bool> stopPlayMic() async {
-    final result = await _methodChannel?.invokeMethod('stopPlayMic');
-    return result == true;
+    try {
+      final result = await _invokeMethodWhenReady<bool>('stopPlayMic');
+      return result == true;
+    } catch (e) {
+      debugPrint("Error stopping mic playback: $e");
+      return false;
+    }
   }
 
   /// Start camera preview
@@ -268,44 +315,75 @@ class UVCCameraController {
     if (fps < 1 || fps > 60) {
       throw ArgumentError('帧率必须在1-60之间');
     }
-    await _methodChannel?.invokeMethod('setVideoFrameRateLimit', {'fps': fps});
+    await _invokeMethodWhenReady('setVideoFrameRateLimit', {'fps': fps});
+  }
+
+  /// Get current video frame rate limit
+  Future<int?> getVideoFrameRateLimit() async {
+    try {
+      final result = await _invokeMethodWhenReady('getVideoFrameRateLimit');
+      return result is int ? result : null;
+    } catch (e) {
+      debugPrint("Error getting frame rate limit: $e");
+      return null;
+    }
   }
 
   /// 设置视频帧大小限制
   Future<void> setVideoFrameSizeLimit(int maxBytes) async {
-    await _methodChannel
-        ?.invokeMethod('setVideoFrameSizeLimit', {'size': maxBytes});
+    await _invokeMethodWhenReady('setVideoFrameSizeLimit', {'size': maxBytes});
   }
 
   /// Get all available preview sizes
   Future<List<PreviewSize>> getAllPreviewSizes() async {
-    var result = await _methodChannel?.invokeMethod('getAllPreviewSizes');
+    var result = await _invokeMethodWhenReady('getAllPreviewSizes');
     List<PreviewSize> list = [];
-    if (result != null) {
-      json.decode(result).forEach((element) {
-        list.add(PreviewSize.fromJson(element));
-      });
-      _previewSizes = list;
+    if (result is String) {
+      final decoded = json.decode(result);
+      if (decoded is List) {
+        for (final element in decoded) {
+          list.add(PreviewSize.fromJson(element));
+        }
+        _previewSizes = list;
+      }
     }
     return list;
   }
 
   /// Get current camera request parameters
   Future<String?> getCurrentCameraRequestParameters() async {
-    return await _methodChannel
-        ?.invokeMethod('getCurrentCameraRequestParameters');
+    return await _invokeMethodWhenReady('getCurrentCameraRequestParameters');
   }
 
   /// Update camera resolution
-  void updateResolution(PreviewSize? previewSize) {
-    _methodChannel?.invokeMethod('updateResolution', previewSize?.toMap());
+  Future<void> updateResolution(PreviewSize? previewSize) async {
+    await _invokeMethodWhenReady('updateResolution', previewSize?.toMap());
   }
 
   /// Take a picture
   Future<String?> takePicture() async {
-    String? path = await _methodChannel?.invokeMethod('takePicture');
-    debugPrint("path: $path");
-    return path;
+    try {
+      String? path = await _invokeMethodWhenReady('takePicture');
+      debugPrint("path: $path");
+      return path;
+    } catch (e) {
+      debugPrint("Error taking picture: $e");
+      return null;
+    }
+  }
+
+  /// Take a picture and return JPEG bytes
+  Future<Uint8List?> takePictureBytes() async {
+    try {
+      final data = await _invokeMethodWhenReady('takePictureBytes');
+      if (data is Uint8List) {
+        return data;
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error taking picture bytes: $e");
+      return null;
+    }
   }
 
   /// Capture video
@@ -314,49 +392,102 @@ class UVCCameraController {
     _currentRecordingTimeMs = 0;
     _currentRecordingTimeFormatted = "00:00:00";
 
-    String? path = await _methodChannel?.invokeMethod('captureVideo');
-    debugPrint("path: $path");
-    return path;
+    try {
+      String? path = await _invokeMethodWhenReady('captureVideo');
+      debugPrint("path: $path");
+      return path;
+    } catch (e) {
+      debugPrint("Error capturing video: $e");
+      return null;
+    }
+  }
+
+  /// Stop video recording (native toggles capture on/off)
+  Future<String?> stopVideo() async {
+    return captureVideo();
   }
 
   /// Set camera feature value
   Future<bool> setCameraFeature(String feature, int value) async {
-    final result = await _methodChannel?.invokeMethod('setCameraFeature', {
-      'feature': feature,
-      'value': value,
-    });
-    return result == true;
+    try {
+      final result = await _invokeMethodWhenReady('setCameraFeature', {
+        'feature': feature,
+        'value': value,
+      });
+      return result == true;
+    } catch (e) {
+      debugPrint("Error setting camera feature $feature: $e");
+      return false;
+    }
   }
 
   /// Reset camera feature to default
   Future<bool> resetCameraFeature(String feature) async {
-    final result = await _methodChannel?.invokeMethod('resetCameraFeature', {
-      'feature': feature,
-    });
-    return result == true;
+    try {
+      final result = await _invokeMethodWhenReady('resetCameraFeature', {
+        'feature': feature,
+      });
+      return result == true;
+    } catch (e) {
+      debugPrint("Error resetting camera feature $feature: $e");
+      return false;
+    }
   }
 
   /// Get camera feature value
   Future<int?> getCameraFeature(String feature) async {
-    return await _methodChannel?.invokeMethod('getCameraFeature', {
-      'feature': feature,
-    });
+    try {
+      return await _invokeMethodWhenReady('getCameraFeature', {
+        'feature': feature,
+      });
+    } catch (e) {
+      debugPrint("Error getting camera feature $feature: $e");
+      return null;
+    }
   }
 
   /// Get all camera features
   Future<CameraFeatures?> getAllCameraFeatures() async {
-    final result = await _methodChannel?.invokeMethod('getAllCameraFeatures');
-    if (result != null) {
-      final features = CameraFeatures.fromJson(json.decode(result));
-      _cameraFeatures = features;
-      return features;
+    try {
+      final result = await _invokeMethodWhenReady('getAllCameraFeatures');
+      if (result is String) {
+        final decoded = json.decode(result);
+        if (decoded is Map<String, dynamic>) {
+          final features = CameraFeatures.fromJson(decoded);
+          _cameraFeatures = features;
+          return features;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error getting camera features: $e");
+      return null;
     }
-    return null;
   }
 
   /// Set auto focus
   Future<bool> setAutoFocus(bool enabled) async {
     return setCameraFeature('autofocus', enabled ? 1 : 0);
+  }
+
+  /// Set auto exposure
+  Future<bool> setAutoExposure(bool enabled) async {
+    return setCameraFeature('autoexposure', enabled ? 1 : 0);
+  }
+
+  /// Set exposure mode
+  Future<bool> setExposureMode(int mode) async {
+    return setCameraFeature('exposuremode', mode);
+  }
+
+  /// Set exposure priority
+  Future<bool> setExposurePriority(int value) async {
+    return setCameraFeature('exposurepriority', value);
+  }
+
+  /// Set exposure
+  Future<bool> setExposure(int value) async {
+    return setCameraFeature('exposure', value);
   }
 
   /// Set auto white balance
@@ -449,15 +580,17 @@ class UVCCameraController {
     return _methodChannel?.invokeMethod<T>(method, arguments);
   }
 
-  void _takePictureSuccess(String? result) {
-    if (result != null) {
-      _takePicturePath = result;
-      clickTakePictureButtonCallback?.call(result);
-    }
+  void _takePictureSuccess(String result) {
+    _takePicturePath = result;
+    clickTakePictureButtonCallback?.call(result);
   }
 
   /// Close the camera
-  void closeCamera() {
-    _methodChannel?.invokeMethod('closeCamera');
+  Future<void> closeCamera() async {
+    try {
+      await _invokeMethodWhenReady('closeCamera');
+    } catch (e) {
+      debugPrint("Error closing camera: $e");
+    }
   }
 }

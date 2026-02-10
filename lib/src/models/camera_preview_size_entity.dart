@@ -10,12 +10,18 @@ class PreviewSize {
   }
 
   PreviewSize.fromJson(dynamic json) {
-    width = json["width"];
-    height = json["height"];
+    width = _parseIntOrNull(json?["width"]);
+    height = _parseIntOrNull(json?["height"]);
   }
 
   @override
   String toString() {
     return 'PreviewSize{width: $width, height: $height}';
   }
+}
+
+int? _parseIntOrNull(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '');
 }

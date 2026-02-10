@@ -30,6 +30,7 @@ import com.jiangdg.ausbc.callback.ICameraStateCallBack
 import com.jiangdg.ausbc.callback.ICaptureCallBack
 import com.jiangdg.ausbc.callback.IDeviceConnectCallBack
 import com.jiangdg.ausbc.callback.IEncodeDataCallBack
+import com.jiangdg.ausbc.callback.IImageDataCallBack
 import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.render.env.RotateType
 import com.jiangdg.ausbc.utils.Logger
@@ -163,6 +164,15 @@ internal class UVCCameraView(
     }
 
     override fun dispose() {
+        if (isCapturingVideoOrAudio) {
+            recordingTimerManager.stopRecording()
+            captureVideoStop()
+            isCapturingVideoOrAudio = false
+        }
+        if (isStreaming) {
+            captureStreamStop()
+        }
+        stopPlayMic()
         unRegisterMultiCamera()
         mViewBinding.fragmentContainer.removeAllViews()
         stateManager.updateState(CameraStateManager.CameraState.CLOSED)
@@ -651,6 +661,19 @@ internal class UVCCameraView(
                 callback.onError(error ?: "Unknown error")
             }
         })
+    }
+
+    fun takePictureBytes(callback: IImageDataCallBack) {
+        if (!isCameraOpened()) {
+            callback.onError("Camera not open")
+            return
+        }
+        val camera = getCurrentCamera()
+        if (camera !is CameraUVC) {
+            callback.onError("Camera not available or not UVC type")
+            return
+        }
+        camera.captureImageBytes(callback)
     }
 
     fun captureVideo(callback: UVCStringCallback) {

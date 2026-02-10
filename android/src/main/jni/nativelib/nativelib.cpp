@@ -92,9 +92,6 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
 
 extern "C"
 JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* jvm, void* reserved) {
-    if(jvm) {
-        jvm->DestroyJavaVM();
-    }
     globalJvm = nullptr;
     LOGI("JNI_OnUnload success!");
 }

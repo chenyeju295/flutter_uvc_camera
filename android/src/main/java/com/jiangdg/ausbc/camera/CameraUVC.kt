@@ -28,6 +28,7 @@ import com.jiangdg.ausbc.MultiCameraClient.Companion.CAPTURE_TIMES_OUT_SEC
 import com.jiangdg.ausbc.MultiCameraClient.Companion.MAX_NV21_DATA
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
 import com.jiangdg.ausbc.callback.ICaptureCallBack
+import com.jiangdg.ausbc.callback.IImageDataCallBack
 import com.jiangdg.ausbc.callback.IPreviewDataCallBack
 import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.camera.bean.PreviewSize
@@ -303,6 +304,42 @@ class CameraUVC(ctx: Context, device: UsbDevice) : MultiCameraClient.ICamera(ctx
         }
     }
 
+    fun captureImageBytes(callback: IImageDataCallBack) {
+        mSaveImageExecutor.submit {
+            if (!isPreviewed) {
+                mMainHandler.post {
+                    callback.onError("camera not previewing")
+                }
+                Logger.i(TAG, "captureImageBytes failed, camera not previewing")
+                return@submit
+            }
+            val data = mNV21DataQueue.pollFirst(CAPTURE_TIMES_OUT_SEC, TimeUnit.SECONDS)
+            if (data == null) {
+                mMainHandler.post {
+                    callback.onError("times out")
+                }
+                Logger.i(TAG, "captureImageBytes failed, times out.")
+                return@submit
+            }
+            mMainHandler.post {
+                callback.onBegin()
+            }
+            val width = mCameraRequest!!.previewWidth
+            val height = mCameraRequest!!.previewHeight
+            val jpeg = MediaUtils.transformYuv2Jpeg(data, width, height)
+            if (jpeg == null) {
+                mMainHandler.post {
+                    callback.onError("transform yuv to jpeg failed")
+                }
+                Logger.w(TAG, "transform yuv to jpeg failed.")
+                return@submit
+            }
+            mMainHandler.post {
+                callback.onComplete(jpeg)
+            }
+        }
+    }
+
     /**
      * Is mic supported
      *
@@ -342,6 +379,42 @@ class CameraUVC(ctx: Context, device: UsbDevice) : MultiCameraClient.ICamera(ctx
      */
     fun resetAutoFocus() {
         mUvcCamera?.resetFocus()
+    }
+
+    fun setAutoExposure(enable: Boolean) {
+        mUvcCamera?.setAutoExposure(enable)
+    }
+
+    fun getAutoExposure() = mUvcCamera?.getAutoExposure()
+
+    fun setExposureMode(mode: Int) {
+        mUvcCamera?.setExposureMode(mode)
+    }
+
+    fun getExposureMode() = mUvcCamera?.getExposureMode()
+
+    fun resetExposureMode() {
+        mUvcCamera?.resetExposureMode()
+    }
+
+    fun setExposurePriority(priority: Int) {
+        mUvcCamera?.setExposurePriority(priority)
+    }
+
+    fun getExposurePriority() = mUvcCamera?.getExposurePriority()
+
+    fun resetExposurePriority() {
+        mUvcCamera?.resetExposurePriority()
+    }
+
+    fun setExposure(exposure: Int) {
+        mUvcCamera?.setExposure(exposure)
+    }
+
+    fun getExposure() = mUvcCamera?.getExposure()
+
+    fun resetExposure() {
+        mUvcCamera?.resetExposure()
     }
 
     /**

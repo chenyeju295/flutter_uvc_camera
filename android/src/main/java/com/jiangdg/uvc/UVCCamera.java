@@ -66,6 +66,11 @@ public class UVCCamera {
     public static final int CTRL_AE_PRIORITY	= 0x00000004;	// D2:  Auto-Exposure Priority
     public static final int CTRL_AE_ABS			= 0x00000008;	// D3:  Exposure Time (Absolute)
     public static final int CTRL_AR_REL			= 0x00000010;	// D4:  Exposure Time (Relative)
+
+	public static final int AE_MODE_MANUAL = 1;
+	public static final int AE_MODE_AUTO = 2;
+	public static final int AE_MODE_SHUTTER_PRIORITY = 4;
+	public static final int AE_MODE_APERTURE_PRIORITY = 8;
     public static final int CTRL_FOCUS_ABS		= 0x00000020;	// D5:  Focus (Absolute)
     public static final int CTRL_FOCUS_REL		= 0x00000040;	// D6:  Focus (Relative)
     public static final int CTRL_IRIS_ABS		= 0x00000080;	// D7:  Iris (Absolute)
@@ -535,6 +540,105 @@ public class UVCCamera {
     }
 
 //================================================================================
+	public synchronized void setAutoExposure(final boolean enable) {
+		if (mNativePtr != 0) {
+			final int mode = enable ? AE_MODE_AUTO : AE_MODE_MANUAL;
+			nativeSetExposureMode(mNativePtr, mode);
+		}
+	}
+
+	public synchronized boolean getAutoExposure() {
+		if (mNativePtr != 0) {
+			final int mode = nativeGetExposureMode(mNativePtr);
+			return mode == AE_MODE_AUTO || mode == AE_MODE_SHUTTER_PRIORITY || mode == AE_MODE_APERTURE_PRIORITY;
+		}
+		return false;
+	}
+
+	public synchronized void setExposureMode(final int mode) {
+		if (mNativePtr != 0) {
+			nativeSetExposureMode(mNativePtr, mode);
+		}
+	}
+
+	public synchronized int getExposureMode() {
+		if (mNativePtr != 0) {
+			return nativeGetExposureMode(mNativePtr);
+		}
+		return 0;
+	}
+
+	public synchronized void resetExposureMode() {
+		if (mNativePtr != 0) {
+			nativeSetExposureMode(mNativePtr, mExposureModeDef);
+		}
+	}
+
+	public synchronized void setExposurePriority(final int priority) {
+		if (mNativePtr != 0) {
+			nativeUpdateExposurePriorityLimit(mNativePtr);
+			final float range = Math.abs(mExposurePriorityMax - mExposurePriorityMin);
+			if (range > 0) {
+				nativeSetExposurePriority(mNativePtr, (int)(priority / 100.f * range) + mExposurePriorityMin);
+			}
+		}
+	}
+
+	public synchronized int getExposurePriority(final int priority_abs) {
+		int result = 0;
+		if (mNativePtr != 0) {
+			nativeUpdateExposurePriorityLimit(mNativePtr);
+			final float range = Math.abs(mExposurePriorityMax - mExposurePriorityMin);
+			if (range > 0) {
+				result = (int)((priority_abs - mExposurePriorityMin) * 100.f / range);
+			}
+		}
+		return result;
+	}
+
+	public synchronized int getExposurePriority() {
+		return getExposurePriority(nativeGetExposurePriority(mNativePtr));
+	}
+
+	public synchronized void resetExposurePriority() {
+		if (mNativePtr != 0) {
+			nativeSetExposurePriority(mNativePtr, mExposurePriorityDef);
+		}
+	}
+
+	public synchronized void setExposure(final int exposure) {
+		if (mNativePtr != 0) {
+			nativeUpdateExposureLimit(mNativePtr);
+			final float range = Math.abs(mExposureMax - mExposureMin);
+			if (range > 0) {
+				nativeSetExposure(mNativePtr, (int)(exposure / 100.f * range) + mExposureMin);
+			}
+		}
+	}
+
+	public synchronized int getExposure(final int exposure_abs) {
+		int result = 0;
+		if (mNativePtr != 0) {
+			nativeUpdateExposureLimit(mNativePtr);
+			final float range = Math.abs(mExposureMax - mExposureMin);
+			if (range > 0) {
+				result = (int)((exposure_abs - mExposureMin) * 100.f / range);
+			}
+		}
+		return result;
+	}
+
+	public synchronized int getExposure() {
+		return getExposure(nativeGetExposure(mNativePtr));
+	}
+
+	public synchronized void resetExposure() {
+		if (mNativePtr != 0) {
+			nativeSetExposure(mNativePtr, mExposureDef);
+		}
+	}
+
+//================================================================================
 	public synchronized void setAutoWhiteBlance(final boolean autoWhiteBlance) {
     	if (mNativePtr != 0) {
     		nativeSetAutoWhiteBlance(mNativePtr, autoWhiteBlance);
@@ -962,6 +1066,10 @@ public class UVCCamera {
     				mProcSupports = nativeGetProcSupports(mNativePtr);
     	    	// 設定値を取得
     	    	if ((mControlSupports != 0) && (mProcSupports != 0)) {
+    	    		nativeUpdateExposureModeLimit(mNativePtr);
+    	    		nativeUpdateExposurePriorityLimit(mNativePtr);
+    	    		nativeUpdateExposureLimit(mNativePtr);
+    	    		nativeUpdateExposureRelLimit(mNativePtr);
 	    	    	nativeUpdateBrightnessLimit(mNativePtr);
 	    	    	nativeUpdateContrastLimit(mNativePtr);
 	    	    	nativeUpdateSharpnessLimit(mNativePtr);
@@ -986,6 +1094,9 @@ public class UVCCamera {
 					XLogWrapper.v(TAG, String.format("Zoom:min=%d,max=%d,def=%d", mZoomMin, mZoomMax, mZoomDef));
 					XLogWrapper.v(TAG, String.format("WhiteBlance:min=%d,max=%d,def=%d", mWhiteBlanceMin, mWhiteBlanceMax, mWhiteBlanceDef));
 					XLogWrapper.v(TAG, String.format("Focus:min=%d,max=%d,def=%d", mFocusMin, mFocusMax, mFocusDef));
+    				XLogWrapper.v(TAG, String.format("ExposureMode:min=%d,max=%d,def=%d", mExposureModeMin, mExposureModeMax, mExposureModeDef));
+    				XLogWrapper.v(TAG, String.format("ExposurePriority:min=%d,max=%d,def=%d", mExposurePriorityMin, mExposurePriorityMax, mExposurePriorityDef));
+    				XLogWrapper.v(TAG, String.format("Exposure:min=%d,max=%d,def=%d", mExposureMin, mExposureMax, mExposureDef));
 				}
 			}
     	} else {
