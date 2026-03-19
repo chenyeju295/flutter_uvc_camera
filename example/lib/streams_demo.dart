@@ -24,6 +24,8 @@ class _StreamsDemoState extends State<StreamsDemo> {
   // FPS values
   int _currentFps = 0;
   int _renderFps = 0; // GL render FPS
+  StreamStatsEvent? _streamStats;
+  bool _autoAdaptEnabled = true;
 
   @override
   void initState() {
@@ -100,9 +102,22 @@ class _StreamsDemoState extends State<StreamsDemo> {
       });
     };
 
+    cameraController.onStreamStatsCallback = (statsEvent) {
+      setState(() {
+        _streamStats = statsEvent;
+      });
+    };
+
     // After initializing camera
     cameraController.setVideoFrameRateLimit(20); // Lower than default 30
     cameraController.setVideoFrameSizeLimit(1024 * 1024); // Limit frame size
+    cameraController.setAudioFrameSizeLimit(0); // Keep audio unrestricted
+    cameraController.enableAutoAdaptiveStreaming(
+      minVideoFps: 10,
+      maxVideoFps: 24,
+      minVideoSizeLimit: 256 * 1024,
+      maxVideoSizeLimit: 1024 * 1024,
+    );
   }
 
   @override
@@ -158,6 +173,24 @@ class _StreamsDemoState extends State<StreamsDemo> {
     }
   }
 
+  void _toggleAutoAdapt(bool enabled) {
+    setState(() {
+      _autoAdaptEnabled = enabled;
+    });
+    if (enabled) {
+      cameraController.enableAutoAdaptiveStreaming(
+        minVideoFps: 10,
+        maxVideoFps: 24,
+        minVideoSizeLimit: 256 * 1024,
+        maxVideoSizeLimit: 1024 * 1024,
+      );
+      showCustomToast('Auto adaptive streaming enabled');
+    } else {
+      cameraController.disableAutoAdaptiveStreaming();
+      showCustomToast('Auto adaptive streaming disabled');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -187,7 +220,7 @@ class _StreamsDemoState extends State<StreamsDemo> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: UVCCameraView(
-                    cameraController: cameraController!,
+                    cameraController: cameraController,
                     params: const UVCCameraViewParamsEntity(frameFormat: 0),
                     width: 300,
                     height: 300,
@@ -363,6 +396,15 @@ class _StreamsDemoState extends State<StreamsDemo> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Audio-first auto adapt'),
+                  subtitle: const Text(
+                      'Auto reduce video fps/size when drops increase'),
+                  value: _autoAdaptEnabled,
+                  onChanged: isCameraOpen ? _toggleAutoAdapt : null,
+                ),
               ],
             ),
           ),
@@ -394,6 +436,10 @@ class _StreamsDemoState extends State<StreamsDemo> {
                     if (_renderFps > 0)
                       _buildStatRow('GL Render FPS', _renderFps.toString(),
                           highlight: true),
+                    if (_streamStats != null)
+                      _buildStatRow(
+                          'Native Video FPS', _streamStats!.videoFps.toString(),
+                          highlight: true),
                     _buildStatRow('Recording Status',
                         isRecording ? 'Recording' : 'Not Recording',
                         highlight: isRecording),
@@ -405,6 +451,27 @@ class _StreamsDemoState extends State<StreamsDemo> {
                         'Audio Frames', audioFramesReceived.toString()),
                     _buildStatRow(
                         'Last Frame Size', '$lastVideoFrameSize bytes'),
+                    if (_streamStats != null) ...[
+                      const Divider(),
+                      _buildStatRow('Native Video Frames',
+                          _streamStats!.totalVideoFrames.toString()),
+                      _buildStatRow('Native Audio Frames',
+                          _streamStats!.totalAudioFrames.toString()),
+                      _buildStatRow('Dropped Video Frames',
+                          _streamStats!.droppedVideoFrames.toString()),
+                      _buildStatRow('Dropped Audio Frames',
+                          _streamStats!.droppedAudioFrames.toString()),
+                      _buildStatRow(
+                        'Video Drop Rate',
+                        '${(_streamStats!.videoDropRate * 100).toStringAsFixed(2)}%',
+                        highlight: _streamStats!.videoDropRate > 0.1,
+                      ),
+                      _buildStatRow(
+                        'Audio Drop Rate',
+                        '${(_streamStats!.audioDropRate * 100).toStringAsFixed(2)}%',
+                        highlight: _streamStats!.audioDropRate > 0.02,
+                      ),
+                    ],
                   ],
                 ),
               ),

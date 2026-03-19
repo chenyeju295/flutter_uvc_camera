@@ -21,6 +21,7 @@ import android.content.Context
 import android.graphics.ImageFormat
 import android.hardware.Camera
 import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
 import android.view.Surface
 import com.jiangdg.ausbc.callback.IPreviewDataCallBack
@@ -102,8 +103,11 @@ class Camera1Strategy(ctx: Context) : ICameraStrategy(ctx), Camera.PreviewCallba
                 val values = ContentValues()
                 values.put(MediaStore.Images.ImageColumns.TITLE, title)
                 values.put(MediaStore.Images.ImageColumns.DISPLAY_NAME, displayName)
+                values.put(MediaStore.Images.ImageColumns.MIME_TYPE, "image/jpeg")
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                     values.put(MediaStore.Images.ImageColumns.DATA, path)
+                } else {
+                    values.put(MediaStore.Images.ImageColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DCIM}/Camera")
                 }
                 values.put(MediaStore.Images.ImageColumns.DATE_TAKEN, System.currentTimeMillis())
                 values.put(MediaStore.Images.ImageColumns.WIDTH, width)

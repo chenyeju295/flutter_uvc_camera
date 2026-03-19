@@ -52,6 +52,7 @@ class UVCCameraController {
 
   /// State change callback (stream started/stopped)
   Function(StateEvent)? onStreamStateCallback;
+  Function(StreamStatsEvent)? onStreamStatsCallback;
 
   // 当前录制时间，单位毫秒
   int _currentRecordingTimeMs = 0;
@@ -85,6 +86,13 @@ class UVCCameraController {
   final Completer<void> _viewReadyCompleter = Completer<void>();
   int _streamErrorCount = 0;
   bool _isRecording = false;
+  bool _autoAdaptEnabled = false;
+  int _autoAdaptMinVideoFps = 10;
+  int _autoAdaptMaxVideoFps = 30;
+  int _autoAdaptCurrentVideoSizeLimit = 0;
+  int _autoAdaptMinVideoSizeLimit = 256 * 1024;
+  int _autoAdaptMaxVideoSizeLimit = 2 * 1024 * 1024;
+  DateTime _lastAutoAdaptAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   /// Initialize controller
   UVCCameraController() {
@@ -134,6 +142,14 @@ class UVCCameraController {
               if (onRecordingTimeCallback != null) {
                 onRecordingTimeCallback!(recordingEvent);
               }
+            } else if (videoEvent is StreamStatsEvent) {
+              if (onStreamStatsCallback != null) {
+                onStreamStatsCallback!(videoEvent);
+              }
+              _handleAutoAdaptByStreamStats(videoEvent);
+              if (onStreamStateCallback != null) {
+                onStreamStateCallback!(videoEvent);
+              }
             } else if (['OPENED', 'CLOSED', 'ERROR', 'OPENING', 'CLOSING']
                 .contains(videoEvent.state)) {
               // Handle camera lifecycle states from EventChannel
@@ -153,6 +169,81 @@ class UVCCameraController {
     } catch (e) {
       debugPrint("Error parsing video stream event: $e");
     }
+  }
+
+  /// 启用/配置自动自适应（音频优先）
+  void enableAutoAdaptiveStreaming({
+    int minVideoFps = 10,
+    int maxVideoFps = 30,
+    int minVideoSizeLimit = 256 * 1024,
+    int maxVideoSizeLimit = 2 * 1024 * 1024,
+  }) {
+    _autoAdaptEnabled = true;
+    _autoAdaptMinVideoFps = minVideoFps.clamp(1, 60);
+    _autoAdaptMaxVideoFps = maxVideoFps.clamp(_autoAdaptMinVideoFps, 60);
+    _autoAdaptMinVideoSizeLimit =
+        minVideoSizeLimit.clamp(64 * 1024, 8 * 1024 * 1024);
+    _autoAdaptMaxVideoSizeLimit =
+        maxVideoSizeLimit.clamp(_autoAdaptMinVideoSizeLimit, 16 * 1024 * 1024);
+    _autoAdaptCurrentVideoSizeLimit = 0;
+  }
+
+  void disableAutoAdaptiveStreaming() {
+    _autoAdaptEnabled = false;
+  }
+
+  void _handleAutoAdaptByStreamStats(StreamStatsEvent stats) {
+    if (!_autoAdaptEnabled) return;
+    final now = DateTime.now();
+    if (now.difference(_lastAutoAdaptAt).inMilliseconds < 1500) return;
+
+    Future.microtask(() async {
+      try {
+        // 音频优先：只调整视频参数
+        if (stats.audioDropRate > 0.02 || stats.videoDropRate > 0.20) {
+          final currentFps =
+              await getVideoFrameRateLimit() ?? _autoAdaptMaxVideoFps;
+          if (currentFps > _autoAdaptMinVideoFps) {
+            final nextFps = (currentFps * 0.85)
+                .round()
+                .clamp(_autoAdaptMinVideoFps, _autoAdaptMaxVideoFps);
+            await setVideoFrameRateLimit(nextFps);
+            _lastAutoAdaptAt = now;
+            return;
+          }
+
+          // 帧率已经到下限，再限制视频帧大小，降低编码压力
+          final currentLimit = _autoAdaptCurrentVideoSizeLimit <= 0
+              ? _autoAdaptMaxVideoSizeLimit
+              : _autoAdaptCurrentVideoSizeLimit;
+          final nextLimit = (currentLimit * 0.8)
+              .round()
+              .clamp(_autoAdaptMinVideoSizeLimit, _autoAdaptMaxVideoSizeLimit);
+          if (nextLimit != currentLimit) {
+            await setVideoFrameSizeLimit(nextLimit);
+            _autoAdaptCurrentVideoSizeLimit = nextLimit;
+            _lastAutoAdaptAt = now;
+          }
+          return;
+        }
+
+        // 状态恢复：逐步回升视频帧率
+        if (stats.videoDropRate < 0.03 &&
+            stats.audioDropRate == 0 &&
+            stats.videoFps >= 12) {
+          final currentFps =
+              await getVideoFrameRateLimit() ?? _autoAdaptMaxVideoFps;
+          if (currentFps < _autoAdaptMaxVideoFps) {
+            final nextFps = (currentFps + 2)
+                .clamp(_autoAdaptMinVideoFps, _autoAdaptMaxVideoFps);
+            await setVideoFrameRateLimit(nextFps);
+            _lastAutoAdaptAt = now;
+          }
+        }
+      } catch (e) {
+        debugPrint("Auto-adaptive streaming update failed: $e");
+      }
+    });
   }
 
   /// 处理视频流错误
@@ -332,6 +423,22 @@ class UVCCameraController {
   /// 设置视频帧大小限制
   Future<void> setVideoFrameSizeLimit(int maxBytes) async {
     await _invokeMethodWhenReady('setVideoFrameSizeLimit', {'size': maxBytes});
+  }
+
+  /// 设置音频帧大小限制（单位字节，0表示不限制）
+  Future<void> setAudioFrameSizeLimit(int maxBytes) async {
+    await _invokeMethodWhenReady('setAudioFrameSizeLimit', {'size': maxBytes});
+  }
+
+  /// 获取当前音频帧大小限制
+  Future<int?> getAudioFrameSizeLimit() async {
+    try {
+      final result = await _invokeMethodWhenReady('getAudioFrameSizeLimit');
+      return result is int ? result : null;
+    } catch (e) {
+      debugPrint("Error getting audio frame size limit: $e");
+      return null;
+    }
   }
 
   /// Get all available preview sizes
@@ -537,7 +644,7 @@ class UVCCameraController {
 
   void _setCameraState(String state) {
     if (state == "VIEW_READY") {
-      if (! _viewReadyCompleter.isCompleted) {
+      if (!_viewReadyCompleter.isCompleted) {
         _viewReadyCompleter.complete();
       }
       return;
@@ -568,14 +675,14 @@ class UVCCameraController {
       return;
     }
     try {
-      await _viewReadyCompleter.future
-          .timeout(const Duration(seconds: 2));
+      await _viewReadyCompleter.future.timeout(const Duration(seconds: 2));
     } catch (_) {
       // Continue without blocking if the view-ready event is late or missing.
     }
   }
 
-  Future<T?> _invokeMethodWhenReady<T>(String method, [dynamic arguments]) async {
+  Future<T?> _invokeMethodWhenReady<T>(String method,
+      [dynamic arguments]) async {
     await _waitForViewReady();
     return _methodChannel?.invokeMethod<T>(method, arguments);
   }

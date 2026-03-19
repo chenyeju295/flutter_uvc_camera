@@ -201,6 +201,16 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(null)
             }
 
+            "setAudioFrameSizeLimit" -> {
+                val size = call.argument<Int>("size") ?: 0
+                videoStreamHandler.audioFrameSizeLimit = size
+                result.success(null)
+            }
+
+            "getAudioFrameSizeLimit" -> {
+                result.success(videoStreamHandler.audioFrameSizeLimit)
+            }
+
             // Camera settings
             "getAllPreviewSizes" -> {
                 result.success(factory?.getAllPreviewSizes())

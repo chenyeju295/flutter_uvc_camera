@@ -14,6 +14,10 @@ abstract class VideoStreamEvent {
       case 'AAC':
         return VideoFrameEvent.fromMap(map);
       case 'STATE':
+        final state = map['state']?.toString() ?? 'UNKNOWN';
+        if (state == 'STREAM_STATS') {
+          return StreamStatsEvent.fromMap(map);
+        }
         return StateEvent.fromMap(map);
       default:
         return UnknownEvent(type);
@@ -75,6 +79,43 @@ class StateEvent extends VideoStreamEvent {
       data: rawData.isNotEmpty ? rawData : null,
     );
   }
+}
+
+/// 实时流统计事件
+class StreamStatsEvent extends StateEvent {
+  final int totalVideoFrames;
+  final int totalAudioFrames;
+  final int droppedVideoFrames;
+  final int droppedAudioFrames;
+  final int videoFps;
+
+  StreamStatsEvent({
+    required this.totalVideoFrames,
+    required this.totalAudioFrames,
+    required this.droppedVideoFrames,
+    required this.droppedAudioFrames,
+    required this.videoFps,
+    Map<String, dynamic>? data,
+  }) : super(state: 'STREAM_STATS', data: data);
+
+  factory StreamStatsEvent.fromMap(Map<dynamic, dynamic> map) {
+    final rawData = Map<String, dynamic>.from(map);
+    rawData.remove('type');
+    rawData.remove('state');
+    return StreamStatsEvent(
+      totalVideoFrames: _parseIntOrZero(map['totalVideoFrames']),
+      totalAudioFrames: _parseIntOrZero(map['totalAudioFrames']),
+      droppedVideoFrames: _parseIntOrZero(map['droppedVideoFrames']),
+      droppedAudioFrames: _parseIntOrZero(map['droppedAudioFrames']),
+      videoFps: _parseIntOrZero(map['videoFps']),
+      data: rawData.isNotEmpty ? rawData : null,
+    );
+  }
+
+  double get videoDropRate =>
+      totalVideoFrames <= 0 ? 0 : droppedVideoFrames / totalVideoFrames;
+  double get audioDropRate =>
+      totalAudioFrames <= 0 ? 0 : droppedAudioFrames / totalAudioFrames;
 }
 
 /// 录制计时状态
