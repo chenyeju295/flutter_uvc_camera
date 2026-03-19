@@ -271,7 +271,9 @@ class Mp4Muxer(
     private fun getVideoContentValues(path: String): ContentValues {
         val file = File(path)
         val values = ContentValues()
-        values.put(MediaStore.Video.Media.DATA, path)
+        if (!MediaUtils.isAboveQ()) {
+            values.put(MediaStore.Video.Media.DATA, path)
+        }
         values.put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
         values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
         values.put(MediaStore.Video.Media.SIZE, file.length())

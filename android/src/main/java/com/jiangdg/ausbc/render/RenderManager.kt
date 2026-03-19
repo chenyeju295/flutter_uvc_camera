@@ -468,11 +468,19 @@ class RenderManager(
         val values = ContentValues()
         values.put(MediaStore.Images.ImageColumns.TITLE, title)
         values.put(MediaStore.Images.ImageColumns.DISPLAY_NAME, displayName)
-        values.put(MediaStore.Images.ImageColumns.DATA, path)
-        values.put(MediaStore.Images.ImageColumns.DATE_TAKEN, date)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            values.put(MediaStore.Images.ImageColumns.DATA, path)
+        }
+        values.put(MediaStore.Images.ImageColumns.DATE_TAKEN, System.currentTimeMillis())
         values.put(MediaStore.Images.ImageColumns.WIDTH, width)
         values.put(MediaStore.Images.ImageColumns.HEIGHT, height)
-        mContext.contentResolver?.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+        try {
+            mContext.contentResolver?.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+        } catch (e: Exception) {
+            // On Android 10+, some providers reject legacy columns (for example _data).
+            // Keep the captured file and report completion even if gallery indexing fails.
+            Logger.w(TAG, "insert media store failed, err = ${e.localizedMessage}")
+        }
         mMainHandler.post {
             mCaptureDataCb?.onComplete(path)
         }

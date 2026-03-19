@@ -19,6 +19,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.SurfaceTexture
 import android.hardware.usb.UsbDevice
+import android.os.Build
 import android.provider.MediaStore
 import android.view.Surface
 import android.view.SurfaceView
@@ -292,11 +293,17 @@ class CameraUVC(ctx: Context, device: UsbDevice) : MultiCameraClient.ICamera(ctx
             val values = ContentValues()
             values.put(MediaStore.Images.ImageColumns.TITLE, title)
             values.put(MediaStore.Images.ImageColumns.DISPLAY_NAME, displayName)
-            values.put(MediaStore.Images.ImageColumns.DATA, path)
-            values.put(MediaStore.Images.ImageColumns.DATE_TAKEN, date)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                values.put(MediaStore.Images.ImageColumns.DATA, path)
+            }
+            values.put(MediaStore.Images.ImageColumns.DATE_TAKEN, System.currentTimeMillis())
             values.put(MediaStore.Images.ImageColumns.LONGITUDE, location?.longitude)
             values.put(MediaStore.Images.ImageColumns.LATITUDE, location?.latitude)
-            ctx.contentResolver?.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            try {
+                ctx.contentResolver?.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            } catch (e: Exception) {
+                Logger.w(TAG, "insert media store failed, err = ${e.localizedMessage}")
+            }
             mMainHandler.post {
                 callback.onComplete(path)
             }

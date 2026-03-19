@@ -20,6 +20,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.ImageFormat
 import android.hardware.Camera
+import android.os.Build
 import android.provider.MediaStore
 import android.view.Surface
 import com.jiangdg.ausbc.callback.IPreviewDataCallBack
@@ -101,14 +102,20 @@ class Camera1Strategy(ctx: Context) : ICameraStrategy(ctx), Camera.PreviewCallba
                 val values = ContentValues()
                 values.put(MediaStore.Images.ImageColumns.TITLE, title)
                 values.put(MediaStore.Images.ImageColumns.DISPLAY_NAME, displayName)
-                values.put(MediaStore.Images.ImageColumns.DATA, path)
-                values.put(MediaStore.Images.ImageColumns.DATE_TAKEN, date)
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    values.put(MediaStore.Images.ImageColumns.DATA, path)
+                }
+                values.put(MediaStore.Images.ImageColumns.DATE_TAKEN, System.currentTimeMillis())
                 values.put(MediaStore.Images.ImageColumns.WIDTH, width)
                 values.put(MediaStore.Images.ImageColumns.HEIGHT, height)
                 values.put(MediaStore.Images.ImageColumns.ORIENTATION, orientation)
                 values.put(MediaStore.Images.ImageColumns.LONGITUDE, location?.longitude)
                 values.put(MediaStore.Images.ImageColumns.LATITUDE, location?.latitude)
-                getContext()?.contentResolver?.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                try {
+                    getContext()?.contentResolver?.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                } catch (e: Exception) {
+                    Logger.w(TAG, "insert media store failed, err = ${e.localizedMessage}")
+                }
                 mMainHandler.post {
                     mCaptureDataCb?.onComplete(path)
                 }
