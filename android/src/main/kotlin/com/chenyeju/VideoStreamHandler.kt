@@ -5,6 +5,7 @@ import android.os.Looper
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * 处理视频流数据的EventChannel处理类
@@ -32,6 +33,13 @@ class VideoStreamHandler : EventChannel.StreamHandler {
     private var droppedVideoFrames = 0L
     private var droppedAudioFrames = 0L
 
+    /**
+     * Backpressure: avoid posting every frame to the main thread.
+     * Keep only one in-flight send slot for video/audio, drop extra frames early.
+     */
+    private val pendingVideoSend = AtomicBoolean(false)
+    private val pendingAudioSend = AtomicBoolean(false)
+
     private val statsTicker = object : Runnable {
         override fun run() {
             sendState(
@@ -52,6 +60,8 @@ class VideoStreamHandler : EventChannel.StreamHandler {
     
     override fun onListen(arguments: Any?, events: EventSink?) {
         eventSink = events
+        pendingVideoSend.set(false)
+        pendingAudioSend.set(false)
         frameCounter = 0
         lastFpsUpdateTime = System.currentTimeMillis()
         frameTimes.clear()
@@ -66,6 +76,8 @@ class VideoStreamHandler : EventChannel.StreamHandler {
     override fun onCancel(arguments: Any?) {
         mainHandler.removeCallbacks(statsTicker)
         eventSink = null
+        pendingVideoSend.set(false)
+        pendingAudioSend.set(false)
     }
     
     /**
@@ -98,6 +110,19 @@ class VideoStreamHandler : EventChannel.StreamHandler {
         } else if (!isVideoFrame && audioFrameSizeLimit > 0 && size > audioFrameSizeLimit) {
             droppedAudioFrames++
             return
+        }
+
+        // Backpressure drop: if a send is already pending on main thread, drop current frame early.
+        if (isVideoFrame) {
+            if (pendingVideoSend.getAndSet(true)) {
+                droppedVideoFrames++
+                return
+            }
+        } else {
+            if (pendingAudioSend.getAndSet(true)) {
+                droppedAudioFrames++
+                return
+            }
         }
         
         // 更精确的FPS计算仅用于视频帧，音频帧不参与
@@ -144,6 +169,12 @@ class VideoStreamHandler : EventChannel.StreamHandler {
             copy
         } catch (e: Exception) {
             sink.error("VIDEO_STREAM_ERROR", "Error copying video buffer: ${e.message}", null)
+            // If we don't post an event, we must release the backpressure slot now.
+            if (isVideoFrame) {
+                pendingVideoSend.set(false)
+            } else {
+                pendingAudioSend.set(false)
+            }
             return
         }
         
@@ -159,6 +190,13 @@ class VideoStreamHandler : EventChannel.StreamHandler {
                 sink.success(event)
             } catch (e: Exception) {
                 sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
+            } finally {
+                // Release the backpressure slot after posting is processed.
+                if (isVideoFrame) {
+                    pendingVideoSend.set(false)
+                } else {
+                    pendingAudioSend.set(false)
+                }
             }
         }
     }

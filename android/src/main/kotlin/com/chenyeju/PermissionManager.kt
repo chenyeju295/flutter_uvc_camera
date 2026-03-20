@@ -14,19 +14,22 @@ import androidx.core.content.PermissionChecker
 class PermissionManager {
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1230
+        private const val AUDIO_PERMISSION_REQUEST_CODE = 1231
         
         /**
          * Check if camera and storage permissions are granted
          */
         fun hasRequiredPermissions(context: Context): Boolean {
+            return hasCameraAndStoragePermissions(context) && hasAudioPermission(context)
+        }
+
+        /**
+         * Check camera + storage permissions for preview/photo only.
+         */
+        fun hasCameraAndStoragePermissions(context: Context): Boolean {
             val hasCameraPermission = PermissionChecker.checkSelfPermission(
                 context,
                 Manifest.permission.CAMERA
-            )
-
-            val hasAudioPermission = PermissionChecker.checkSelfPermission(
-                context,
-                Manifest.permission.RECORD_AUDIO
             )
 
             val hasStoragePermission = if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
@@ -38,9 +41,17 @@ class PermissionManager {
                 true
             }
 
-            return hasCameraPermission == PermissionChecker.PERMISSION_GRANTED
-                && hasAudioPermission == PermissionChecker.PERMISSION_GRANTED
-                && hasStoragePermission
+            return hasCameraPermission == PermissionChecker.PERMISSION_GRANTED && hasStoragePermission
+        }
+
+        /**
+         * Check audio permission for streaming/recording only.
+         */
+        fun hasAudioPermission(context: Context): Boolean {
+            return PermissionChecker.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PermissionChecker.PERMISSION_GRANTED
         }
         
         /**
@@ -70,12 +81,53 @@ class PermissionManager {
             )
             return false
         }
+
+        /**
+         * Request camera + storage permissions only.
+         */
+        fun requestCameraAndStoragePermissionsIfNeeded(activity: Activity?): Boolean {
+            if (activity == null) {
+                return false
+            }
+            if (hasCameraAndStoragePermissions(activity)) {
+                return true
+            }
+            val permissions = ArrayList<String>()
+            permissions.add(Manifest.permission.CAMERA)
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+            ActivityCompat.requestPermissions(
+                activity,
+                permissions.toTypedArray(),
+                PERMISSION_REQUEST_CODE
+            )
+            return false
+        }
+
+        /**
+         * Request audio permission only.
+         */
+        fun requestAudioPermissionIfNeeded(activity: Activity?): Boolean {
+            if (activity == null) {
+                return false
+            }
+            if (hasAudioPermission(activity)) {
+                return true
+            }
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                AUDIO_PERMISSION_REQUEST_CODE
+            )
+            return false
+        }
         
         /**
          * Check if permission result is successful
          */
         fun isPermissionGranted(requestCode: Int, permissions: Array<out String>, grantResults: IntArray): Boolean {
-            if (requestCode != PERMISSION_REQUEST_CODE) {
+            if (requestCode != PERMISSION_REQUEST_CODE && requestCode != AUDIO_PERMISSION_REQUEST_CODE) {
                 return false
             }
             
@@ -86,5 +138,7 @@ class PermissionManager {
          * Get permission request code
          */
         fun getPermissionRequestCode() = PERMISSION_REQUEST_CODE
+
+        fun getAudioPermissionRequestCode() = AUDIO_PERMISSION_REQUEST_CODE
     }
 } 

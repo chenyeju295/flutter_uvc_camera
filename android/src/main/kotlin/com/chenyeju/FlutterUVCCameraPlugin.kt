@@ -224,6 +224,11 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 factory?.updateResolution(call.arguments)
                 result.success(null)
             }
+
+            "updateCameraViewParams" -> {
+                factory?.updateCameraViewParams(call.arguments)
+                result.success(null)
+            }
             
             // Camera feature methods
             "setCameraFeature" -> {

@@ -13,6 +13,8 @@ class _StreamsDemoState extends State<StreamsDemo> {
   bool isCameraOpen = false;
   bool isStreaming = false;
   bool isRecording = false;
+  int _previewFrameFormat = 0; // 0: YUYV, 1: MJPEG
+  bool _isApplyingPreviewParams = false;
 
   // Streaming stats
   int videoFramesReceived = 0;
@@ -125,6 +127,37 @@ class _StreamsDemoState extends State<StreamsDemo> {
     cameraController.closeCamera();
     cameraController.dispose();
     super.dispose();
+  }
+
+  Future<void> _togglePreviewFormat() async {
+    if (!isCameraOpen ||
+        isStreaming ||
+        isRecording ||
+        _isApplyingPreviewParams) {
+      return;
+    }
+
+    final nextFormat = _previewFrameFormat == 0 ? 1 : 0;
+    setState(() {
+      _previewFrameFormat = nextFormat;
+      _isApplyingPreviewParams = true;
+    });
+
+    // Preview fps/format: MJPEG often tolerates higher fps than YUYV.
+    final nextMaxFps = nextFormat == 0 ? 30 : 60;
+    await cameraController.updateCameraViewParams(
+      UVCCameraViewParamsEntity(
+        frameFormat: nextFormat,
+        minFps: 10,
+        maxFps: nextMaxFps,
+        // Keep bandwidthFactor default (1.0) and preview size unchanged.
+      ),
+    );
+    if (mounted) {
+      setState(() {
+        _isApplyingPreviewParams = false;
+      });
+    }
   }
 
   void showCustomToast(String message) {
@@ -373,6 +406,21 @@ class _StreamsDemoState extends State<StreamsDemo> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                ElevatedButton.icon(
+                  onPressed: (isCameraOpen &&
+                          !isStreaming &&
+                          !isRecording &&
+                          !_isApplyingPreviewParams)
+                      ? _togglePreviewFormat
+                      : null,
+                  icon: const Icon(Icons.swap_horiz),
+                  label: Text(
+                    _previewFrameFormat == 0
+                        ? 'Switch to MJPEG preview'
+                        : 'Switch to YUYV preview',
+                  ),
+                ),
+                const SizedBox(height: 8),
                 ElevatedButton.icon(
                   onPressed: isCameraOpen ? toggleStreaming : null,
                   icon: Icon(isStreaming ? Icons.stop : Icons.play_arrow),

@@ -119,56 +119,64 @@ class UVCCameraController {
     try {
       final videoEvent =
           VideoStreamEvent.fromMap(Map<dynamic, dynamic>.from(event));
-
-      // Add more robust error handling with retry backoff
       // Use microtask to avoid blocking the main thread
-      Future.microtask(() {
-        try {
-          if (videoEvent is VideoFrameEvent) {
-            if (videoEvent.type == 'H264' && onVideoFrameCallback != null) {
-              onVideoFrameCallback!(videoEvent);
-            } else if (videoEvent.type == 'AAC' &&
-                onAudioFrameCallback != null) {
-              onAudioFrameCallback!(videoEvent);
-            }
-          } else if (videoEvent is StateEvent) {
-            if (videoEvent.state == 'RECORDING_TIME') {
-              final recordingEvent =
-                  RecordingTimeEvent.fromStateEvent(videoEvent);
-              _currentRecordingTimeMs = recordingEvent.elapsedMillis;
-              _currentRecordingTimeFormatted = recordingEvent.formattedTime;
-              _isRecording = !recordingEvent.isFinal;
-
-              if (onRecordingTimeCallback != null) {
-                onRecordingTimeCallback!(recordingEvent);
-              }
-            } else if (videoEvent is StreamStatsEvent) {
-              if (onStreamStatsCallback != null) {
-                onStreamStatsCallback!(videoEvent);
-              }
-              _handleAutoAdaptByStreamStats(videoEvent);
-              if (onStreamStateCallback != null) {
-                onStreamStateCallback!(videoEvent);
-              }
-            } else if (['OPENED', 'CLOSED', 'ERROR', 'OPENING', 'CLOSING']
-                .contains(videoEvent.state)) {
-              // Handle camera lifecycle states from EventChannel
-              final msg = videoEvent.data?['msg'] as String?;
-              final stateStr =
-                  msg != null ? "${videoEvent.state}:$msg" : videoEvent.state;
-              _setCameraState(stateStr);
-            } else if (onStreamStateCallback != null) {
-              onStreamStateCallback!(videoEvent);
-            }
-          }
-          _streamErrorCount = 0;
-        } catch (e) {
-          debugPrint("Error processing video event in microtask: $e");
-        }
-      });
+      Future.microtask(() => _dispatchVideoStreamEvent(videoEvent));
     } catch (e) {
       debugPrint("Error parsing video stream event: $e");
     }
+  }
+
+  void _dispatchVideoStreamEvent(VideoStreamEvent videoEvent) {
+    try {
+      if (videoEvent is VideoFrameEvent) {
+        _handleVideoFrameEvent(videoEvent);
+      } else if (videoEvent is StateEvent) {
+        _handleStateEvent(videoEvent);
+      }
+      _streamErrorCount = 0;
+    } catch (e) {
+      debugPrint("Error processing video event: $e");
+    }
+  }
+
+  void _handleVideoFrameEvent(VideoFrameEvent videoEvent) {
+    if (videoEvent.type == 'H264') {
+      onVideoFrameCallback?.call(videoEvent);
+      return;
+    }
+    if (videoEvent.type == 'AAC') {
+      onAudioFrameCallback?.call(videoEvent);
+      return;
+    }
+  }
+
+  void _handleStateEvent(StateEvent videoEvent) {
+    if (videoEvent.state == 'RECORDING_TIME') {
+      final recordingEvent = RecordingTimeEvent.fromStateEvent(videoEvent);
+      _currentRecordingTimeMs = recordingEvent.elapsedMillis;
+      _currentRecordingTimeFormatted = recordingEvent.formattedTime;
+      _isRecording = !recordingEvent.isFinal;
+      onRecordingTimeCallback?.call(recordingEvent);
+      return;
+    }
+
+    if (videoEvent is StreamStatsEvent) {
+      onStreamStatsCallback?.call(videoEvent);
+      _handleAutoAdaptByStreamStats(videoEvent);
+      onStreamStateCallback?.call(videoEvent);
+      return;
+    }
+
+    if (['OPENED', 'CLOSED', 'ERROR', 'OPENING', 'CLOSING']
+        .contains(videoEvent.state)) {
+      final msg = videoEvent.data?['msg'] as String?;
+      final stateStr =
+          msg != null ? "${videoEvent.state}:$msg" : videoEvent.state;
+      _setCameraState(stateStr);
+      return;
+    }
+
+    onStreamStateCallback?.call(videoEvent);
   }
 
   /// 启用/配置自动自适应（音频优先）
@@ -304,6 +312,10 @@ class UVCCameraController {
       case "callFlutter":
         debugPrint('------> Received from Android：${call.arguments}');
         _callStrings.add(call.arguments.toString());
+        if (_callStrings.length > 200) {
+          // Prevent unbounded growth during long sessions.
+          _callStrings.removeAt(0);
+        }
         final args = call.arguments;
         if (args is Map && args['msg'] is String) {
           msgCallback?.call(args['msg'] as String);
@@ -465,6 +477,17 @@ class UVCCameraController {
   /// Update camera resolution
   Future<void> updateResolution(PreviewSize? previewSize) async {
     await _invokeMethodWhenReady('updateResolution', previewSize?.toMap());
+  }
+
+  /// Apply preview parameters at runtime (fps/format/bandwidth/size).
+  ///
+  /// On Android, if the camera is already opened and not streaming/recording,
+  /// the native preview will be restarted so the new UVC setPreviewSize takes effect.
+  Future<void> updateCameraViewParams(UVCCameraViewParamsEntity params) async {
+    await _invokeMethodWhenReady(
+      'updateCameraViewParams',
+      params.toMap(),
+    );
   }
 
   /// Take a picture

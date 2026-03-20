@@ -21,8 +21,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
-import androidx.core.app.ActivityCompat
-import androidx.core.content.PermissionChecker
+import android.os.Build
 import com.chenyeju.databinding.ActivityMainBinding
 import com.google.gson.Gson
 import com.jiangdg.ausbc.MultiCameraClient
@@ -54,6 +53,9 @@ internal class UVCCameraView(
     private val videoStreamHandler: VideoStreamHandler,
     private val recordingTimerManager: RecordingTimerManager
 ) : PlatformView, PermissionResultListener, ICameraStateCallBack {
+    private enum class PendingOperation {
+        NONE, OPEN_CAMERA, START_STREAM
+    }
     private var mViewBinding = ActivityMainBinding.inflate(LayoutInflater.from(mContext))
     private var mActivity: Activity? = getActivityFromContext(mContext)
     private var mCameraView: IAspectRatio? = null
@@ -61,6 +63,7 @@ internal class UVCCameraView(
     private val mCameraMap = hashMapOf<Int, MultiCameraClient.ICamera>()
     private var mCurrentCamera: SettableFuture<MultiCameraClient.ICamera>? = null
     private var isCapturingVideoOrAudio: Boolean = false
+    private var pendingOperation: PendingOperation = PendingOperation.NONE
     private val mRequestPermission: AtomicBoolean by lazy {
         AtomicBoolean(false)
     }
@@ -154,8 +157,9 @@ internal class UVCCameraView(
     }
 
     fun openUVCCamera() {
-        if (!PermissionManager.hasRequiredPermissions(mContext)) {
-            PermissionManager.requestPermissionsIfNeeded(mActivity)
+        if (!PermissionManager.hasCameraAndStoragePermissions(mContext)) {
+            pendingOperation = PendingOperation.OPEN_CAMERA
+            PermissionManager.requestCameraAndStoragePermissionsIfNeeded(mActivity)
             return
         }
         
@@ -297,8 +301,9 @@ internal class UVCCameraView(
                 width: Int,
                 height: Int
             ) {
-                if (!PermissionManager.hasRequiredPermissions(mContext)) {
-                    PermissionManager.requestPermissionsIfNeeded(mActivity)
+                if (!PermissionManager.hasCameraAndStoragePermissions(mContext)) {
+                    pendingOperation = PendingOperation.OPEN_CAMERA
+                    PermissionManager.requestCameraAndStoragePermissionsIfNeeded(mActivity)
                     return
                 }
                 registerMultiCamera()
@@ -331,11 +336,22 @@ internal class UVCCameraView(
 
     override fun onPermissionResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (PermissionManager.isPermissionGranted(requestCode, permissions, grantResults)) {
-            registerMultiCamera()
-            checkCamera()
+            when (pendingOperation) {
+                PendingOperation.OPEN_CAMERA, PendingOperation.NONE -> {
+                    registerMultiCamera()
+                    checkCamera()
+                }
+                PendingOperation.START_STREAM -> {
+                    pendingOperation = PendingOperation.NONE
+                    captureStreamStart()
+                    return
+                }
+            }
+            pendingOperation = PendingOperation.NONE
         } else {
             callFlutter("Permission denied")
             stateManager.updateState(CameraStateManager.CameraState.ERROR, "Permission denied")
+            pendingOperation = PendingOperation.NONE
         }
     }
 
@@ -361,6 +377,36 @@ internal class UVCCameraView(
         val height = map["height"] as Int
         configManager.updateResolution(width, height)
         getCurrentCamera()?.updateResolution(width, height)
+    }
+
+    /**
+     * Apply new preview parameters (fps/format/bandwidth/size) at runtime.
+     * If the camera is currently opened and not streaming/recording, we restart preview
+     * to make the new UVC setPreviewSize take effect.
+     */
+    fun updateCameraViewParams(arguments: Any?) {
+        configManager.updateFromParams(arguments)
+
+        // Update view aspect ratio immediately if possible.
+        val st = mCameraView
+        if (configManager.getAspectRatioShow() && st is TextureView) {
+            try {
+                applyDisplayAspectRatio(st)
+            } catch (_: Exception) {
+                // Best-effort only.
+            }
+        }
+
+        // Only restart preview when camera is opened and we're not busy.
+        if (!stateManager.isOpened()) return
+        if (isStreaming || isCapturingVideoOrAudio) return
+
+        closeCamera()
+        configManager.cameraHandler.postDelayed({
+            // Re-check opened state could have changed.
+            if (!PermissionManager.hasCameraAndStoragePermissions(mContext)) return@postDelayed
+            openCamera(mCameraView)
+        }, 500L)
     }
 
     fun getCurrentCameraRequestParameters(): String? {
@@ -578,6 +624,11 @@ internal class UVCCameraView(
      * Start capture H264 & AAC only
      */
     fun captureStreamStart() {
+        if (!PermissionManager.hasAudioPermission(mContext)) {
+            pendingOperation = PendingOperation.START_STREAM
+            PermissionManager.requestAudioPermissionIfNeeded(mActivity)
+            return
+        }
         if (!stateManager.checkStateForOperation("stream")) {
             Logger.e(TAG, "Camera not ready for streaming. Current state: ${stateManager.getCurrentState()}")
             callFlutter("Camera not ready for streaming")
@@ -648,9 +699,16 @@ internal class UVCCameraView(
             override fun onComplete(path: String?) {
                 if (path != null) {
                     callback.onSuccess(path)
-                    MediaScannerConnection.scanFile(view.context, arrayOf(path), null) { mPath, uri ->
-                        // File scanned into media database
-                        println("Media scan completed for file: $mPath with uri: $uri")
+                    // MediaStore insert is usually enough (especially on Android 10+).
+                    // scanFile can be redundant and slow, so keep it for older devices only.
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                        MediaScannerConnection.scanFile(
+                            view.context,
+                            arrayOf(path),
+                            null
+                        ) { mPath, uri ->
+                            println("Media scan completed for file: $mPath with uri: $uri")
+                        }
                     }
                 } else {
                     callback.onError("Failed to save image")
@@ -677,6 +735,11 @@ internal class UVCCameraView(
     }
 
     fun captureVideo(callback: UVCStringCallback) {
+        if (!PermissionManager.hasAudioPermission(mContext)) {
+            PermissionManager.requestAudioPermissionIfNeeded(mActivity)
+            callback.onError("Audio permission required for video recording. Please retry after granting permission.")
+            return
+        }
         if (isCapturingVideoOrAudio) {
             recordingTimerManager.stopRecording()
             captureVideoStop()
@@ -704,8 +767,15 @@ internal class UVCCameraView(
             override fun onComplete(path: String?) {
                 if (path != null) {
                     callback.onSuccess(path)
-                    MediaScannerConnection.scanFile(view.context, arrayOf(path), null) { mPath, uri ->
-                        println("Media scan completed for file: $mPath with uri: $uri")
+                    // Keep scanFile only for older Android where MediaStore insert isn't always picked up immediately.
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                        MediaScannerConnection.scanFile(
+                            view.context,
+                            arrayOf(path),
+                            null
+                        ) { mPath, uri ->
+                            println("Media scan completed for file: $mPath with uri: $uri")
+                        }
                     }
                     isCapturingVideoOrAudio = false
                     recordingTimerManager.stopRecording()
@@ -719,6 +789,10 @@ internal class UVCCameraView(
     }
 
     fun startPlayMic(): Boolean {
+        if (!PermissionManager.hasAudioPermission(mContext)) {
+            PermissionManager.requestAudioPermissionIfNeeded(mActivity)
+            return false
+        }
         if (!isCameraOpened()) {
             callFlutter("Camera not open")
             return false

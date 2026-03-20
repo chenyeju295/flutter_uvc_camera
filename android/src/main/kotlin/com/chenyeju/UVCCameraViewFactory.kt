@@ -90,6 +90,10 @@ class UVCCameraViewFactory(
     fun updateResolution(arguments: Any?) {
         cameraView?.updateResolution(arguments)
     }
+
+    fun updateCameraViewParams(arguments: Any?) {
+        cameraView?.updateCameraViewParams(arguments)
+    }
     
     // 相机特性方法
     fun setCameraFeature(feature: String, value: Int): Boolean {
