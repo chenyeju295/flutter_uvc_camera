@@ -196,6 +196,23 @@ internal class UVCCameraView(
             ICameraStateCallBack.State.OPENED -> {
                 stateManager.updateState(CameraStateManager.CameraState.OPENED)
                 setButtonCallback()
+                // Issue #47: UVC may negotiate a different preview size than requested.
+                // MultiCameraClient sets aspect from pre-open request dimensions; after open,
+                // sync actual size and re-apply display aspect (including 90°/270° swap) so the
+                // TextureView matches the rotated frame and does not stretch.
+                try {
+                    getCurrentCamera()?.getCameraRequest()?.let { req ->
+                        configManager.updateResolution(req.previewWidth, req.previewHeight)
+                        val cv = mCameraView
+                        if (configManager.getAspectRatioShow() && cv is TextureView) {
+                            cv.post {
+                                applyDisplayAspectRatio(cv)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Logger.e(TAG, "apply display aspect after camera open failed", e)
+                }
             }
             ICameraStateCallBack.State.CLOSED -> {
                 stateManager.updateState(CameraStateManager.CameraState.CLOSED)
@@ -356,10 +373,11 @@ internal class UVCCameraView(
     }
 
     private fun callFlutter(msg: String, type: String? = null) {
-        val data = HashMap<String, String>()
-        data["type"] = type ?: "msg"
-        data["msg"] = msg
-        mChannel.invokeMethod("callFlutter", data)
+        val payload = HashMap<String, Any>()
+        // Do not use key "type" here: sendState merge would overwrite event["type"]=="STATE".
+        payload["msgType"] = type ?: "msg"
+        payload["msg"] = msg
+        videoStreamHandler.sendState("PLUGIN_MESSAGE", payload)
     }
 
     fun getAllPreviewSizes(): String? {
@@ -403,10 +421,12 @@ internal class UVCCameraView(
 
         closeCamera()
         configManager.cameraHandler.postDelayed({
-            // Re-check opened state could have changed.
+            // Re-check before restarting to avoid races with close/dispose.
+            if (isStreaming || isCapturingVideoOrAudio) return@postDelayed
+            if (mCameraView == null) return@postDelayed
             if (!PermissionManager.hasCameraAndStoragePermissions(mContext)) return@postDelayed
             openCamera(mCameraView)
-        }, 500L)
+        }, 800L)
     }
 
     fun getCurrentCameraRequestParameters(): String? {
@@ -605,7 +625,10 @@ internal class UVCCameraView(
                     takePicture(
                         object : UVCStringCallback {
                             override fun onSuccess(path: String) {
-                                mChannel.invokeMethod("takePictureSuccess", path)
+                                videoStreamHandler.sendState(
+                                    "TAKE_PICTURE_SUCCESS",
+                                    mapOf("path" to path)
+                                )
                             }
 
                             override fun onError(error: String) {

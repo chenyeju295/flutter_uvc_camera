@@ -35,6 +35,18 @@ class CameraConfigManager {
     
     // Handler for camera operations
     val cameraHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * Important for runtime preview tuning:
+     * We keep a single mutable map instance so that native camera instances
+     * (created once on USB attach) can observe updates after MethodChannel calls.
+     */
+    private val cameraParamsCache: MutableMap<String, Any> = mutableMapOf(
+        "minFps" to DEFAULT_MIN_FPS,
+        "maxFps" to DEFAULT_MAX_FPS,
+        "frameFormat" to DEFAULT_FRAME_FORMAT,
+        "bandwidthFactor" to DEFAULT_BANDWIDTH_FACTOR
+    )
     
     /**
      * Update configuration from Flutter parameters
@@ -51,6 +63,12 @@ class CameraConfigManager {
             rawPreviewData = (params["rawPreviewData"] as? Boolean) ?: rawPreviewData
             aspectRatioShow = (params["aspectRatioShow"] as? Boolean) ?: aspectRatioShow
             rotateType = (params["rotateType"] as? Number)?.toInt()?.let { toRotateType(it) } ?: rotateType
+
+            // Update shared cache so already-created CameraUVC reads latest values.
+            cameraParamsCache["minFps"] = minFps
+            cameraParamsCache["maxFps"] = maxFps
+            cameraParamsCache["frameFormat"] = frameFormat
+            cameraParamsCache["bandwidthFactor"] = bandwidthFactor
         }
     }
     
@@ -66,12 +84,8 @@ class CameraConfigManager {
      * Get camera parameters for CustomCameraUVC
      */
     fun getCameraParams(): Map<String, Any> {
-        return mapOf(
-            "minFps" to minFps,
-            "maxFps" to maxFps,
-            "frameFormat" to frameFormat,
-            "bandwidthFactor" to bandwidthFactor
-        )
+        // Return the same mutable map instance (important for runtime updates).
+        return cameraParamsCache
     }
     
     /**

@@ -21,7 +21,7 @@ class UVCCameraViewFactory(
         val view = UVCCameraView(context, this.channel, args, videoStreamHandler, recordingTimerManager)
         cameraView = view
         plugin.setPermissionResultListener(view)
-        channel.invokeMethod("CameraState", "VIEW_READY")
+        videoStreamHandler.sendState("VIEW_READY", null)
         if (pendingInit) {
             view.initCamera()
             pendingInit = false

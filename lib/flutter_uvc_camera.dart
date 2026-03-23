@@ -11,3 +11,4 @@ part 'src/models/video_data_type.dart';
 part 'src/models/camera_preview_size_entity.dart';
 part 'src/models/camera_features.dart';
 part 'src/models/video_stream_event.dart';
+part 'src/models/camera_plugin_states.dart';

@@ -5,6 +5,7 @@ import android.os.Looper
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 import java.nio.ByteBuffer
+import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -40,6 +41,14 @@ class VideoStreamHandler : EventChannel.StreamHandler {
     private val pendingVideoSend = AtomicBoolean(false)
     private val pendingAudioSend = AtomicBoolean(false)
 
+    /**
+     * State queue for cases where native emits events before Dart subscribes.
+     * We keep it bounded to avoid memory leaks.
+     */
+    private val pendingLock = Any()
+    private val pendingStates = ArrayDeque<Pair<String, Map<String, Any>?>>()
+    private val maxPendingStates = 64
+
     private val statsTicker = object : Runnable {
         override fun run() {
             sendState(
@@ -70,6 +79,11 @@ class VideoStreamHandler : EventChannel.StreamHandler {
         droppedVideoFrames = 0L
         droppedAudioFrames = 0L
         mainHandler.removeCallbacks(statsTicker)
+        if (events != null) {
+            mainHandler.post {
+                flushPendingStates(events)
+            }
+        }
         mainHandler.postDelayed(statsTicker, 1000L)
     }
     
@@ -78,6 +92,9 @@ class VideoStreamHandler : EventChannel.StreamHandler {
         eventSink = null
         pendingVideoSend.set(false)
         pendingAudioSend.set(false)
+        synchronized(pendingLock) {
+            pendingStates.clear()
+        }
     }
     
     /**
@@ -205,17 +222,47 @@ class VideoStreamHandler : EventChannel.StreamHandler {
      * 发送状态更新
      */
     fun sendState(state: String, data: Map<String, Any>? = null) {
-        val sink = eventSink ?: return
-        
-        val event = HashMap<String, Any>()
-        event["type"] = "STATE"
-        event["state"] = state
-        if (data != null) {
-            event.putAll(data)
+        val sink = eventSink
+        if (sink == null) {
+            enqueuePendingState(state, data)
+            return
         }
-        
         mainHandler.post {
+            deliverStateToSink(sink, state, data)
+        }
+    }
+
+    private fun enqueuePendingState(state: String, data: Map<String, Any>?) {
+        synchronized(pendingLock) {
+            while (pendingStates.size >= maxPendingStates) {
+                pendingStates.removeFirst()
+            }
+            pendingStates.addLast(state to data)
+        }
+    }
+
+    private fun flushPendingStates(sink: EventSink) {
+        val batch: List<Pair<String, Map<String, Any>?>> = synchronized(pendingLock) {
+            val list = pendingStates.toList()
+            pendingStates.clear()
+            list
+        }
+        for ((state, data) in batch) {
+            deliverStateToSink(sink, state, data)
+        }
+    }
+
+    private fun deliverStateToSink(sink: EventSink, state: String, data: Map<String, Any>?) {
+        try {
+            val event = HashMap<String, Any>()
+            event["type"] = "STATE"
+            event["state"] = state
+            if (data != null) {
+                event.putAll(data)
+            }
             sink.success(event)
+        } catch (_: Exception) {
+            // Ignore; sink can be invalid after cancellation.
         }
     }
 } 

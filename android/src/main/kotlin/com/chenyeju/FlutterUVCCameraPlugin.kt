@@ -226,8 +226,16 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             "updateCameraViewParams" -> {
-                factory?.updateCameraViewParams(call.arguments)
-                result.success(null)
+                if (factory == null) {
+                    result.error("NOT_READY", "Platform view not created yet", null)
+                    return@onMethodCall
+                }
+                try {
+                    factory.updateCameraViewParams(call.arguments)
+                    result.success(null)
+                } catch (e: Exception) {
+                    result.error("UPDATE_PARAMS_ERROR", e.localizedMessage, null)
+                }
             }
             
             // Camera feature methods

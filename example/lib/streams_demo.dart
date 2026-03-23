@@ -81,6 +81,9 @@ class _StreamsDemoState extends State<StreamsDemo> {
 
     cameraController.onStreamStateCallback = (stateEvent) {
       debugPrint("Stream state changed: ${stateEvent.state}");
+      // STREAM_STATS is also a StateEvent; keep it out of "Stream State"
+      // so UI semantics stay consistent.
+      if (stateEvent.state == 'STREAM_STATS') return;
       setState(() {
         streamState = stateEvent.state;
 

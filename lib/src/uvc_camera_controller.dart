@@ -17,6 +17,10 @@ class UVCCameraController {
   /// Camera state callback
   Function(UVCCameraState)? cameraStateCallback;
 
+  /// Unified native→Dart status on [EventChannel] (lifecycle, stream, plugin messages, etc.).
+  /// Prefer this over parsing multiple legacy [MethodChannel] callbacks.
+  Function(StateEvent)? onStateEvent;
+
   /// Photo capture button callback
   Function(String path)? clickTakePictureButtonCallback;
 
@@ -150,33 +154,90 @@ class UVCCameraController {
     }
   }
 
-  void _handleStateEvent(StateEvent videoEvent) {
-    if (videoEvent.state == 'RECORDING_TIME') {
-      final recordingEvent = RecordingTimeEvent.fromStateEvent(videoEvent);
-      _currentRecordingTimeMs = recordingEvent.elapsedMillis;
-      _currentRecordingTimeFormatted = recordingEvent.formattedTime;
-      _isRecording = !recordingEvent.isFinal;
-      onRecordingTimeCallback?.call(recordingEvent);
+  void _handleStateEvent(StateEvent event) {
+    try {
+      onStateEvent?.call(event);
+    } catch (e, st) {
+      debugPrint('onStateEvent error: $e\n$st');
+    }
+
+    switch (event.state) {
+      case CameraPluginStates.viewReady:
+        if (!_viewReadyCompleter.isCompleted) {
+          _viewReadyCompleter.complete();
+        }
+        return;
+      case CameraPluginStates.pluginMessage:
+        final msg = event.data?['msg'] as String?;
+        if (msg != null) {
+          debugPrint('------> Plugin message: $msg');
+          _callStrings.add(msg);
+          if (_callStrings.length > 200) {
+            _callStrings.removeAt(0);
+          }
+          msgCallback?.call(msg);
+        }
+        return;
+      case CameraPluginStates.takePictureSuccess:
+        final path = event.data?['path'] as String?;
+        if (path != null) {
+          _takePictureSuccess(path);
+        }
+        return;
+      case CameraPluginStates.recordingTime:
+        final recordingEvent = RecordingTimeEvent.fromStateEvent(event);
+        _currentRecordingTimeMs = recordingEvent.elapsedMillis;
+        _currentRecordingTimeFormatted = recordingEvent.formattedTime;
+        _isRecording = !recordingEvent.isFinal;
+        onRecordingTimeCallback?.call(recordingEvent);
+        return;
+      default:
+        break;
+    }
+
+    if (event is StreamStatsEvent) {
+      onStreamStatsCallback?.call(event);
+      _handleAutoAdaptByStreamStats(event);
+      onStreamStateCallback?.call(event);
       return;
     }
 
-    if (videoEvent is StreamStatsEvent) {
-      onStreamStatsCallback?.call(videoEvent);
-      _handleAutoAdaptByStreamStats(videoEvent);
-      onStreamStateCallback?.call(videoEvent);
-      return;
+    switch (event.state) {
+      case CameraPluginStates.opened:
+      case CameraPluginStates.closed:
+      case CameraPluginStates.error:
+        _applyLifecycleCameraState(event);
+        return;
+      case CameraPluginStates.opening:
+      case CameraPluginStates.closing:
+        debugPrint('Camera: ${event.state} ${event.data?['msg'] ?? ''}'.trim());
+        return;
+      default:
+        onStreamStateCallback?.call(event);
     }
+  }
 
-    if (['OPENED', 'CLOSED', 'ERROR', 'OPENING', 'CLOSING']
-        .contains(videoEvent.state)) {
-      final msg = videoEvent.data?['msg'] as String?;
-      final stateStr =
-          msg != null ? "${videoEvent.state}:$msg" : videoEvent.state;
-      _setCameraState(stateStr);
-      return;
+  void _applyLifecycleCameraState(StateEvent event) {
+    switch (event.state) {
+      case CameraPluginStates.opened:
+        _cameraState = UVCCameraState.opened;
+        cameraStateCallback?.call(UVCCameraState.opened);
+        return;
+      case CameraPluginStates.closed:
+        _cameraState = UVCCameraState.closed;
+        cameraStateCallback?.call(UVCCameraState.closed);
+        return;
+      case CameraPluginStates.error:
+        final msg = event.data?['msg'] as String? ?? '';
+        final full = msg.isNotEmpty ? 'ERROR:$msg' : CameraPluginStates.error;
+        _cameraState = UVCCameraState.error;
+        _cameraErrorMsg = full;
+        cameraStateCallback?.call(UVCCameraState.error);
+        msgCallback?.call(full);
+        return;
+      default:
+        break;
     }
-
-    onStreamStateCallback?.call(videoEvent);
   }
 
   /// 启用/配置自动自适应（音频优先）
@@ -308,31 +369,35 @@ class UVCCameraController {
 
   /// Handle method calls from platform
   Future<void> _methodChannelHandler(MethodCall call) async {
+    // Legacy MethodChannel paths: delegate to the same handler as EventChannel states.
     switch (call.method) {
       case "callFlutter":
-        debugPrint('------> Received from Android：${call.arguments}');
-        _callStrings.add(call.arguments.toString());
-        if (_callStrings.length > 200) {
-          // Prevent unbounded growth during long sessions.
-          _callStrings.removeAt(0);
-        }
+        debugPrint(
+            '------> Received from Android (legacy callFlutter)：${call.arguments}');
         final args = call.arguments;
         if (args is Map && args['msg'] is String) {
-          msgCallback?.call(args['msg'] as String);
+          _handleStateEvent(StateEvent(
+            state: CameraPluginStates.pluginMessage,
+            data: {
+              'msg': args['msg'],
+              'msgType': args['type'] ?? 'msg',
+            },
+          ));
         }
         break;
 
       case "takePictureSuccess":
         if (call.arguments is String) {
-          _takePictureSuccess(call.arguments as String);
+          _handleStateEvent(StateEvent(
+            state: CameraPluginStates.takePictureSuccess,
+            data: {'path': call.arguments},
+          ));
         }
         break;
 
       case "CameraState":
-        final state = call.arguments.toString();
-        // Only handle VIEW_READY from MethodChannel as it's a critical initialization signal
-        if (state == "VIEW_READY") {
-          _setCameraState(state);
+        if (call.arguments == CameraPluginStates.viewReady) {
+          _handleStateEvent(StateEvent(state: CameraPluginStates.viewReady));
         }
         break;
     }
@@ -663,34 +728,6 @@ class UVCCameraController {
   /// Set camera hue
   Future<bool> setHue(int value) async {
     return setCameraFeature('hue', value);
-  }
-
-  void _setCameraState(String state) {
-    if (state == "VIEW_READY") {
-      if (!_viewReadyCompleter.isCompleted) {
-        _viewReadyCompleter.complete();
-      }
-      return;
-    }
-    debugPrint("Camera: $state");
-    switch (state) {
-      case "OPENED":
-        _cameraState = UVCCameraState.opened;
-        cameraStateCallback?.call(UVCCameraState.opened);
-        break;
-      case "CLOSED":
-        _cameraState = UVCCameraState.closed;
-        cameraStateCallback?.call(UVCCameraState.closed);
-        break;
-      default:
-        if (state.contains("ERROR")) {
-          _cameraState = UVCCameraState.error;
-          _cameraErrorMsg = state;
-          cameraStateCallback?.call(UVCCameraState.error);
-          msgCallback?.call(state);
-        }
-        break;
-    }
   }
 
   Future<void> _waitForViewReady() async {
