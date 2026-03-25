@@ -125,8 +125,13 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: UVCCameraView(
-                cameraController: cameraController!,
-                params: const UVCCameraViewParamsEntity(frameFormat: 0),
+                cameraController: cameraController,
+                // FeaturesDemo is preview/features only; keep it lightweight by default.
+                params: const UVCCameraViewParamsEntity(
+                  frameFormat: 0,
+                  streamProfile:
+                      UVCCameraViewParamsEntity.streamProfileLightweight,
+                ),
                 width: double.infinity,
                 height: 200,
               ),
@@ -210,7 +215,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                                   ? (value) {
                                       setState(() => autoWhiteBalance = value);
                                       cameraController
-                                          ?.setAutoWhiteBalance(value);
+                                          .setAutoWhiteBalance(value);
                                     }
                                   : null,
                             ),
@@ -226,8 +231,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                                 max: 100,
                                 onChanged: (value) {
                                   setState(() => brightness = value.toInt());
-                                  cameraController
-                                      ?.setBrightness(value.toInt());
+                                  cameraController.setBrightness(value.toInt());
                                 },
                               ),
 
@@ -251,8 +255,7 @@ class _FeaturesDemoState extends State<FeaturesDemo> {
                                 max: 100,
                                 onChanged: (value) {
                                   setState(() => saturation = value.toInt());
-                                  cameraController
-                                      ?.setSaturation(value.toInt());
+                                  cameraController.setSaturation(value.toInt());
                                 },
                               ),
 

@@ -39,7 +39,10 @@ class _UVCCameraViewState extends State<UVCCameraView> {
       height: widget.height,
       child: AndroidView(
         viewType: 'uvc_camera_view',
-        creationParams: widget.params?.toMap(),
+        // Default to a lightweight profile even when caller passes no params,
+        // to avoid pushing raw H264/AAC bytes to Dart by default.
+        creationParams:
+            (widget.params ?? const UVCCameraViewParamsEntity()).toMap(),
         creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: (id) {
           Future.microtask(() {

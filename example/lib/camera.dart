@@ -101,7 +101,7 @@ class _CameraTestState extends State<CameraTest> {
             ),
 
             // Camera preview
-            if (cameraController != null) _buildCameraPreview(),
+            _buildCameraPreview(),
 
             // Camera settings
             _buildSectionTitle('Camera Settings'),
@@ -124,7 +124,7 @@ class _CameraTestState extends State<CameraTest> {
                   Colors.purple,
                   () {
                     cameraController
-                        ?.getCurrentCameraRequestParameters()
+                        .getCurrentCameraRequestParameters()
                         .then((value) => showCustomToast(value.toString()));
                   },
                 ),
@@ -262,8 +262,13 @@ class _CameraTestState extends State<CameraTest> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: UVCCameraView(
-              cameraController: cameraController!,
-              params: const UVCCameraViewParamsEntity(frameFormat: 0),
+              cameraController: cameraController,
+              // CameraTest is mainly preview + media capture; keep it lightweight.
+              params: const UVCCameraViewParamsEntity(
+                frameFormat: 0,
+                streamProfile:
+                    UVCCameraViewParamsEntity.streamProfileLightweight,
+              ),
               width: 300,
               height: 300,
             ),

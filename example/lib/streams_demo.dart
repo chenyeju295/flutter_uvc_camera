@@ -153,6 +153,8 @@ class _StreamsDemoState extends State<StreamsDemo> {
         frameFormat: nextFormat,
         minFps: 10,
         maxFps: nextMaxFps,
+        // Keep streaming enabled when only switching preview format.
+        streamProfile: UVCCameraViewParamsEntity.streamProfileStreaming,
         // Keep bandwidthFactor default (1.0) and preview size unchanged.
       ),
     );
@@ -257,7 +259,13 @@ class _StreamsDemoState extends State<StreamsDemo> {
                   borderRadius: BorderRadius.circular(16),
                   child: UVCCameraView(
                     cameraController: cameraController,
-                    params: const UVCCameraViewParamsEntity(frameFormat: 0),
+                    // StreamsDemo needs H264/AAC bytes on Dart side.
+                    // The plugin default is lightweight, so set streaming explicitly.
+                    params: const UVCCameraViewParamsEntity(
+                      frameFormat: 0,
+                      streamProfile:
+                          UVCCameraViewParamsEntity.streamProfileStreaming,
+                    ),
                     width: 300,
                     height: 300,
                     autoDispose: false,

@@ -53,6 +53,10 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
     }
     companion object {
         private const val TAG = "CameraUVC"
+        // Image-bytes capture is expected to respond quickly (e.g. under 1s).
+        // For file-based capture we can be more tolerant, but for in-memory bytes we
+        // shorten the wait time to avoid business timeout.
+        private const val CAPTURE_BYTES_TIMES_OUT_SEC = 1L
     }
 
     private val frameCallBack = IFrameCallback { frame ->
@@ -313,29 +317,48 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
                 Logger.i(TAG, "captureImageBytes failed, camera not previewing")
                 return@submit
             }
-            val data = mNV21DataQueue.pollFirst(CAPTURE_TIMES_OUT_SEC, TimeUnit.SECONDS)
-            if (data == null) {
-                mMainHandler.post {
-                    callback.onError("times out")
+
+            // Under OPENGL render mode, default preview might not register YUV frame callbacks,
+            // which means mNV21DataQueue could be empty. For takePictureBytes, we enable frame
+            // callback temporarily so we can get the next NV21 frame quickly.
+            val cameraRequest = mCameraRequest
+            val needEnableFrameCallback = isNeedGLESRender &&
+                cameraRequest?.isRawPreviewData != true &&
+                cameraRequest?.isCaptureRawImage != true
+
+            var enabledTemporarily = false
+            try {
+                if (needEnableFrameCallback) {
+                    // Clear stale frames to improve "freshness" of the captured frame.
+                    mNV21DataQueue.clear()
+                    mUvcCamera?.setFrameCallback(frameCallBack, UVCCamera.PIXEL_FORMAT_YUV420SP)
+                    enabledTemporarily = true
                 }
-                Logger.i(TAG, "captureImageBytes failed, times out.")
-                return@submit
-            }
-            mMainHandler.post {
-                callback.onBegin()
-            }
-            val width = mCameraRequest!!.previewWidth
-            val height = mCameraRequest!!.previewHeight
-            val jpeg = MediaUtils.transformYuv2Jpeg(data, width, height)
-            if (jpeg == null) {
-                mMainHandler.post {
-                    callback.onError("transform yuv to jpeg failed")
+
+                val data = mNV21DataQueue.pollFirst(CAPTURE_BYTES_TIMES_OUT_SEC, TimeUnit.SECONDS)
+                if (data == null) {
+                    mMainHandler.post { callback.onError("times out") }
+                    Logger.i(TAG, "captureImageBytes failed, times out.")
+                    return@submit
                 }
-                Logger.w(TAG, "transform yuv to jpeg failed.")
-                return@submit
-            }
-            mMainHandler.post {
-                callback.onComplete(jpeg)
+
+                mMainHandler.post { callback.onBegin() }
+
+                val width = mCameraRequest!!.previewWidth
+                val height = mCameraRequest!!.previewHeight
+                val jpeg = MediaUtils.transformYuv2Jpeg(data, width, height)
+                if (jpeg == null) {
+                    mMainHandler.post { callback.onError("transform yuv to jpeg failed") }
+                    Logger.w(TAG, "transform yuv to jpeg failed.")
+                    return@submit
+                }
+
+                mMainHandler.post { callback.onComplete(jpeg) }
+            } finally {
+                if (enabledTemporarily) {
+                    // Stop producing YUV frames again to avoid overhead.
+                    mUvcCamera?.setFrameCallback(null, 0)
+                }
             }
         }
     }

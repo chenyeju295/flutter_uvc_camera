@@ -106,6 +106,7 @@ internal class UVCCameraView(
     
     init {
         configManager.updateFromParams(params)
+        applyStreamProfile(params)
     }
 
     companion object {
@@ -118,6 +119,42 @@ internal class UVCCameraView(
 
     private fun setCameraERRORState(msg: String? = null) {
         stateManager.updateState(CameraStateManager.CameraState.ERROR, msg)
+    }
+
+    /**
+     * Apply stream profile to reduce default overhead.
+     *
+     * streamProfile:
+     * 0 = lightweight (disable pushing raw H264/AAC bytes to Dart)
+     * 1 = streaming (enable both)
+     * 2 = keyframesOnly (H264 keyframes only)
+     */
+    private fun applyStreamProfile(params: Any?) {
+        val map = params as? Map<*, *> ?: return
+        val profile = (map["streamProfile"] as? Number)?.toInt() ?: return
+        when (profile) {
+            0 -> {
+                videoStreamHandler.enableVideoFrames = false
+                videoStreamHandler.enableAudioFrames = false
+                videoStreamHandler.videoKeyframesOnly = false
+            }
+            1 -> {
+                videoStreamHandler.enableVideoFrames = true
+                videoStreamHandler.enableAudioFrames = true
+                videoStreamHandler.videoKeyframesOnly = false
+                // Keep VideoStreamHandler defaults for frameRateLimit unless caller changes it.
+            }
+            2 -> {
+                videoStreamHandler.enableVideoFrames = true
+                videoStreamHandler.enableAudioFrames = false
+                videoStreamHandler.videoKeyframesOnly = true
+                // Keyframes sync doesn't need a high event fps; use a conservative default.
+                videoStreamHandler.frameRateLimit = 15
+            }
+            else -> {
+                // Unknown profile: keep current defaults.
+            }
+        }
     }
 
     fun initCamera() {
@@ -395,6 +432,13 @@ internal class UVCCameraView(
      */
     fun updateCameraViewParams(arguments: Any?) {
         configManager.updateFromParams(arguments)
+        // Apply stream profile changes immediately (if provided) so streaming/keyframe
+        // delivery settings match Dart-side expectations.
+        try {
+            applyStreamProfile(arguments)
+        } catch (_: Exception) {
+            // Best-effort only.
+        }
 
         // Update view aspect ratio immediately if possible.
         val st = mCameraView

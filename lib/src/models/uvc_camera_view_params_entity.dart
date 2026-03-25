@@ -2,6 +2,16 @@ part of flutter_uvc_camera;
 
 /// 自定义参数 可空  Custom parameters can be empty
 class UVCCameraViewParamsEntity {
+  /// Stream data delivery profile:
+  /// 0 = lightweight (do not push raw video/audio bytes to Dart)
+  /// 1 = streaming (push raw video/audio bytes to Dart)
+  /// 2 = keyframesOnly (push H264 keyframes only to Dart)
+  ///
+  /// Default is lightweight to minimize CPU/memory usage in typical preview-only scenarios.
+  static const int streamProfileLightweight = 0;
+  static const int streamProfileStreaming = 1;
+  static const int streamProfileKeyframesOnly = 2;
+
   /**
    *  if give custom minFps or maxFps or unsupported preview size
    *  set preview possible will fail
@@ -37,6 +47,9 @@ class UVCCameraViewParamsEntity {
   /// default rotation angle: 0, 90, 180, 270
   final int? rotateType;
 
+  /// Controls whether raw H264/AAC bytes are pushed to Dart via EventChannel.
+  final int streamProfile;
+
   const UVCCameraViewParamsEntity({
     this.minFps = 10,
     this.maxFps = 60,
@@ -48,6 +61,7 @@ class UVCCameraViewParamsEntity {
     this.captureRawImage,
     this.rawPreviewData,
     this.rotateType,
+    this.streamProfile = streamProfileLightweight,
   });
 
   Map<String, dynamic> toMap() {
@@ -62,6 +76,7 @@ class UVCCameraViewParamsEntity {
       "captureRawImage": captureRawImage,
       "rawPreviewData": rawPreviewData,
       "rotateType": rotateType,
+      "streamProfile": streamProfile,
     };
   }
 }
