@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:typed_data';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_uvc_camera/flutter_uvc_camera.dart';
@@ -518,6 +516,38 @@ class UVCCameraController {
     }
   }
 
+  /// Enable/disable pushing raw stream bytes over EventChannel.
+  ///
+  /// Recommended:
+  /// - If you only need camera state / stats UI: disable both.
+  /// - If you need H264/AAC bytes for network streaming: keep enabled, but still use fps/size limits.
+  Future<void> setStreamDataEnabled(
+      {bool video = true, bool audio = true}) async {
+    await _invokeMethodWhenReady('setStreamDataEnabled', {
+      'video': video,
+      'audio': audio,
+    });
+  }
+
+  /// Get whether raw stream bytes are enabled.
+  Future<Map<String, bool>?> getStreamDataEnabled() async {
+    try {
+      final result = await _invokeMethodWhenReady('getStreamDataEnabled');
+      if (result is Map) {
+        final v = result['video'];
+        final a = result['audio'];
+        return {
+          'video': v == true,
+          'audio': a == true,
+        };
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error getting stream data enabled: $e");
+      return null;
+    }
+  }
+
   /// Get all available preview sizes
   Future<List<PreviewSize>> getAllPreviewSizes() async {
     var result = await _invokeMethodWhenReady('getAllPreviewSizes');
@@ -703,6 +733,40 @@ class UVCCameraController {
   /// Set camera contrast
   Future<bool> setContrast(int value) async {
     return setCameraFeature('contrast', value);
+  }
+
+  /// Only deliver H264 keyframes (IDR) over EventChannel.
+  ///
+  /// Useful when your business logic only needs periodic sync frames (e.g. thumbnails / health checks),
+  /// or when you want to reduce Dart-side processing.
+  Future<void> setVideoKeyframesOnly(bool enabled) async {
+    await _invokeMethodWhenReady('setVideoKeyframesOnly', {'enabled': enabled});
+  }
+
+  Future<bool?> getVideoKeyframesOnly() async {
+    try {
+      final result = await _invokeMethodWhenReady('getVideoKeyframesOnly');
+      return result is bool ? result : null;
+    } catch (e) {
+      debugPrint("Error getting video keyframes only: $e");
+      return null;
+    }
+  }
+
+  /// Sample video frames: deliver 1 frame every N frames (N<=1 means no sampling).
+  Future<void> setVideoSampleEveryN(int n) async {
+    if (n < 1) n = 1;
+    await _invokeMethodWhenReady('setVideoSampleEveryN', {'n': n});
+  }
+
+  Future<int?> getVideoSampleEveryN() async {
+    try {
+      final result = await _invokeMethodWhenReady('getVideoSampleEveryN');
+      return result is int ? result : null;
+    } catch (e) {
+      debugPrint("Error getting video sample every N: $e");
+      return null;
+    }
   }
 
   /// Set camera saturation

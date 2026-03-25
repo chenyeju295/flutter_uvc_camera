@@ -137,23 +137,15 @@ internal class UVCCameraView(
 
     /**
      * Set aspect ratio on the view when aspectRatioShow is true to avoid distortion when rotated.
+     *
+     * Use [IAspectRatio.setAspectRatio] directly (no reflection).
      */
-    private fun applyDisplayAspectRatio(textureView: TextureView) {
+    private fun applyDisplayAspectRatio(target: IAspectRatio?) {
+        target ?: return
         if (!configManager.getAspectRatioShow()) return
         val (w, h) = configManager.getDisplayAspectSize()
         if (w <= 0 || h <= 0) return
-        try {
-            val method = textureView.javaClass.getMethod("setAspectRatio", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
-            method.invoke(textureView, w, h)
-        } catch (e: Exception) {
-            try {
-                val ratio = w.toDouble() / h
-                val method = textureView.javaClass.getMethod("setAspectRatio", Double::class.javaPrimitiveType)
-                method.invoke(textureView, ratio)
-            } catch (e2: Exception) {
-                // Library may not expose setAspectRatio; render uses setAspectRatioShow from request
-            }
-        }
+        target.setAspectRatio(w, h)
     }
 
     fun openUVCCamera() {
@@ -204,10 +196,9 @@ internal class UVCCameraView(
                     getCurrentCamera()?.getCameraRequest()?.let { req ->
                         configManager.updateResolution(req.previewWidth, req.previewHeight)
                         val cv = mCameraView
-                        if (configManager.getAspectRatioShow() && cv is TextureView) {
-                            cv.post {
-                                applyDisplayAspectRatio(cv)
-                            }
+                        if (configManager.getAspectRatioShow() && cv is IAspectRatio) {
+                            // Best-effort: re-apply after layout.
+                            (cv as? View)?.post { applyDisplayAspectRatio(cv) } ?: applyDisplayAspectRatio(cv)
                         }
                     }
                 } catch (e: Exception) {
@@ -407,7 +398,7 @@ internal class UVCCameraView(
 
         // Update view aspect ratio immediately if possible.
         val st = mCameraView
-        if (configManager.getAspectRatioShow() && st is TextureView) {
+        if (configManager.getAspectRatioShow() && st is IAspectRatio) {
             try {
                 applyDisplayAspectRatio(st)
             } catch (_: Exception) {

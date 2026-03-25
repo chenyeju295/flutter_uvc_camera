@@ -49,6 +49,12 @@ android {
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
+
+        // Size optimization: only package ARM ABIs.
+        // UVC real-world usage is on physical ARM devices, not x86 emulators.
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a"
+        }
     }
 
     buildTypes {

@@ -1,6 +1,7 @@
 package com.chenyeju
 
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
@@ -13,6 +14,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class VideoStreamHandler : EventChannel.StreamHandler {
     private var eventSink: EventSink? = null
+
+    /**
+     * Background worker to reduce main-thread work per frame.
+     * We still deliver [EventSink.success] on main thread for safety.
+     */
+    private var streamThread: HandlerThread? = null
+    private var streamHandler: Handler? = null
     
     // 视频帧计数器，用于帧率控制
     private var frameCounter = 0
@@ -24,10 +32,22 @@ class VideoStreamHandler : EventChannel.StreamHandler {
     var frameSizeLimit = 0
     var audioFrameSizeLimit = 0
     private var lastFrameTime = 0L
+    private var videoSampleEveryN = 1
+    private var videoSampleCounter = 0
+    @Volatile var videoKeyframesOnly: Boolean = false
+
+    /**
+     * Whether to push raw frame bytes to Dart.
+     *
+     * Default is true for backward compatibility, but for most apps it is strongly recommended
+     * to disable these and consume frames on the native side (decode/render/stream) instead.
+     */
+    @Volatile var enableVideoFrames: Boolean = true
+    @Volatile var enableAudioFrames: Boolean = true
     
     // 更准确的FPS计算
     private val fpsCalculationWindow = 1000L // 1秒钟窗口
-    private val frameTimes = mutableListOf<Long>()
+    private val frameTimes = ArrayDeque<Long>()
 
     private var totalVideoFrames = 0L
     private var totalAudioFrames = 0L
@@ -66,8 +86,21 @@ class VideoStreamHandler : EventChannel.StreamHandler {
     }
     
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    private fun ensureStreamThread() {
+        if (streamThread != null && streamHandler != null) return
+        streamThread = HandlerThread("uvc_stream_events").also { it.start() }
+        streamHandler = Handler(streamThread!!.looper)
+    }
+
+    private fun stopStreamThread() {
+        streamThread?.quitSafely()
+        streamThread = null
+        streamHandler = null
+    }
     
     override fun onListen(arguments: Any?, events: EventSink?) {
+        ensureStreamThread()
         eventSink = events
         pendingVideoSend.set(false)
         pendingAudioSend.set(false)
@@ -95,6 +128,7 @@ class VideoStreamHandler : EventChannel.StreamHandler {
         synchronized(pendingLock) {
             pendingStates.clear()
         }
+        stopStreamThread()
     }
     
     /**
@@ -107,6 +141,30 @@ class VideoStreamHandler : EventChannel.StreamHandler {
             totalVideoFrames++
         } else {
             totalAudioFrames++
+        }
+
+        // If raw bytes delivery is disabled, drop early (stats still update).
+        if (isVideoFrame) {
+            if (!enableVideoFrames) {
+                droppedVideoFrames++
+                return
+            }
+        } else {
+            if (!enableAudioFrames) {
+                droppedAudioFrames++
+                return
+            }
+        }
+
+        // Sampling/keyframe filters (video only).
+        if (isVideoFrame) {
+            // sample every N frames (N<=1 means no sampling)
+            val n = videoSampleEveryN.coerceAtLeast(1)
+            videoSampleCounter = (videoSampleCounter + 1) % n
+            if (n > 1 && videoSampleCounter != 0) {
+                droppedVideoFrames++
+                return
+            }
         }
         
         // 帧率控制
@@ -144,11 +202,11 @@ class VideoStreamHandler : EventChannel.StreamHandler {
         
         // 更精确的FPS计算仅用于视频帧，音频帧不参与
         val fpsForEvent = if (isVideoFrame) {
-            frameTimes.add(currentTime)
+            frameTimes.addLast(currentTime)
 
             // 移除窗口外的时间戳
             while (frameTimes.isNotEmpty() && frameTimes.first() < currentTime - fpsCalculationWindow) {
-                frameTimes.removeAt(0)
+                frameTimes.removeFirst()
             }
 
             val calculatedFps = if (frameTimes.size > 1) {
@@ -194,28 +252,135 @@ class VideoStreamHandler : EventChannel.StreamHandler {
             }
             return
         }
+
+        // Determine whether this is a keyframe (H264 only). Best-effort.
+        val isKeyFrame = if (isVideoFrame) {
+            isH264KeyFrame(dataCopy)
+        } else {
+            false
+        }
+
+        if (isVideoFrame && videoKeyframesOnly && !isKeyFrame) {
+            droppedVideoFrames++
+            // Release the backpressure slot since we won't post an event.
+            pendingVideoSend.set(false)
+            return
+        }
         
-        mainHandler.post {
-            try {
-                val event = HashMap<String, Any>()
+        // Build the event map off the main thread, then deliver on main.
+        val worker = streamHandler
+        if (worker != null) {
+            worker.post {
+                val event = HashMap<String, Any>(7)
                 event["type"] = type
                 event["data"] = dataCopy
                 event["timestamp"] = timestamp
                 event["size"] = size
                 event["fps"] = fpsForEvent
-                
-                sink.success(event)
-            } catch (e: Exception) {
-                sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
-            } finally {
-                // Release the backpressure slot after posting is processed.
-                if (isVideoFrame) {
-                    pendingVideoSend.set(false)
-                } else {
-                    pendingAudioSend.set(false)
+                event["isKeyFrame"] = isKeyFrame
+                mainHandler.post {
+                    try {
+                        sink.success(event)
+                    } catch (e: Exception) {
+                        sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
+                    } finally {
+                        if (isVideoFrame) {
+                            pendingVideoSend.set(false)
+                        } else {
+                            pendingAudioSend.set(false)
+                        }
+                    }
+                }
+            }
+        } else {
+            mainHandler.post {
+                try {
+                    val event = HashMap<String, Any>(7)
+                    event["type"] = type
+                    event["data"] = dataCopy
+                    event["timestamp"] = timestamp
+                    event["size"] = size
+                    event["fps"] = fpsForEvent
+                    event["isKeyFrame"] = isKeyFrame
+                    sink.success(event)
+                } catch (e: Exception) {
+                    sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
+                } finally {
+                    if (isVideoFrame) {
+                        pendingVideoSend.set(false)
+                    } else {
+                        pendingAudioSend.set(false)
+                    }
                 }
             }
         }
+    }
+
+    fun setVideoSampleEveryN(n: Int) {
+        videoSampleEveryN = n.coerceAtLeast(1)
+        videoSampleCounter = 0
+    }
+
+    fun getVideoSampleEveryN(): Int = videoSampleEveryN
+
+    private fun isH264KeyFrame(data: ByteArray): Boolean {
+        // Best-effort scan: return true if any NAL unit type == 5 (IDR).
+        // Supports both Annex-B (0x000001/0x00000001) and length-prefixed (AVCC) in a simple way.
+        return containsH264NalType(data, 5)
+    }
+
+    private fun containsH264NalType(data: ByteArray, targetType: Int): Boolean {
+        if (data.isEmpty()) return false
+
+        // Annex-B start code scan
+        var i = 0
+        var foundStartCode = false
+        while (i + 3 < data.size) {
+            val b0 = data[i].toInt() and 0xFF
+            val b1 = data[i + 1].toInt() and 0xFF
+            val b2 = data[i + 2].toInt() and 0xFF
+            if (b0 == 0 && b1 == 0 && b2 == 1) {
+                foundStartCode = true
+                val nalHeaderIndex = i + 3
+                if (nalHeaderIndex < data.size) {
+                    val nalType = (data[nalHeaderIndex].toInt() and 0x1F)
+                    if (nalType == targetType) return true
+                }
+                i = nalHeaderIndex
+                continue
+            }
+            if (i + 4 < data.size && b0 == 0 && b1 == 0 && b2 == 0 && (data[i + 3].toInt() and 0xFF) == 1) {
+                foundStartCode = true
+                val nalHeaderIndex = i + 4
+                if (nalHeaderIndex < data.size) {
+                    val nalType = (data[nalHeaderIndex].toInt() and 0x1F)
+                    if (nalType == targetType) return true
+                }
+                i = nalHeaderIndex
+                continue
+            }
+            i++
+        }
+
+        if (foundStartCode) return false
+
+        // Try AVCC length-prefixed (4-byte length) scan for a few NALs
+        var pos = 0
+        var scanned = 0
+        while (pos + 4 < data.size && scanned < 8) {
+            val len =
+                ((data[pos].toInt() and 0xFF) shl 24) or
+                ((data[pos + 1].toInt() and 0xFF) shl 16) or
+                ((data[pos + 2].toInt() and 0xFF) shl 8) or
+                (data[pos + 3].toInt() and 0xFF)
+            pos += 4
+            if (len <= 0 || pos + len > data.size) break
+            val nalType = (data[pos].toInt() and 0x1F)
+            if (nalType == targetType) return true
+            pos += len
+            scanned++
+        }
+        return false
     }
     
     /**

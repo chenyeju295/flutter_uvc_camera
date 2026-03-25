@@ -211,6 +211,43 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(videoStreamHandler.audioFrameSizeLimit)
             }
 
+            "setStreamDataEnabled" -> {
+                val enableVideo = call.argument<Boolean>("video") ?: true
+                val enableAudio = call.argument<Boolean>("audio") ?: true
+                videoStreamHandler.enableVideoFrames = enableVideo
+                videoStreamHandler.enableAudioFrames = enableAudio
+                result.success(null)
+            }
+
+            "getStreamDataEnabled" -> {
+                result.success(
+                    mapOf(
+                        "video" to videoStreamHandler.enableVideoFrames,
+                        "audio" to videoStreamHandler.enableAudioFrames,
+                    )
+                )
+            }
+
+            "setVideoKeyframesOnly" -> {
+                val enabled = call.argument<Boolean>("enabled") ?: false
+                videoStreamHandler.videoKeyframesOnly = enabled
+                result.success(null)
+            }
+
+            "getVideoKeyframesOnly" -> {
+                result.success(videoStreamHandler.videoKeyframesOnly)
+            }
+
+            "setVideoSampleEveryN" -> {
+                val n = call.argument<Int>("n") ?: 1
+                videoStreamHandler.setVideoSampleEveryN(n)
+                result.success(null)
+            }
+
+            "getVideoSampleEveryN" -> {
+                result.success(videoStreamHandler.getVideoSampleEveryN())
+            }
+
             // Camera settings
             "getAllPreviewSizes" -> {
                 result.success(factory?.getAllPreviewSizes())

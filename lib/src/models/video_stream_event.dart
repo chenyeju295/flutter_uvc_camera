@@ -31,6 +31,7 @@ class VideoFrameEvent extends VideoStreamEvent {
   final int timestamp;
   final int size;
   final int fps;
+  final bool isKeyFrame;
 
   VideoFrameEvent({
     required String type,
@@ -38,6 +39,7 @@ class VideoFrameEvent extends VideoStreamEvent {
     required this.timestamp,
     required this.size,
     required this.fps,
+    required this.isKeyFrame,
   }) : super(type);
 
   factory VideoFrameEvent.fromMap(Map<dynamic, dynamic> map) {
@@ -46,12 +48,14 @@ class VideoFrameEvent extends VideoStreamEvent {
     final timestamp = _parseIntOrZero(map['timestamp']);
     final size = _parseIntOrZero(map['size']);
     final fps = _parseIntOrZero(map['fps']);
+    final isKeyFrame = map['isKeyFrame'] == true;
     return VideoFrameEvent(
       type: map['type']?.toString() ?? 'UNKNOWN',
       data: data,
       timestamp: timestamp,
       size: size,
       fps: fps,
+      isKeyFrame: isKeyFrame,
     );
   }
 }

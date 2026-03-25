@@ -29,7 +29,7 @@
 APP_PLATFORM := android-14
 APP_LDFLAGS += -Wl,-z,max-page-size=16384
 #APP_ABI :=arm64-v8a armeabi-v7a
-# /*if you want x86 or x86_64, please open it*/
-APP_ABI :=arm64-v8a armeabi-v7a x86 x86_64
+# /*if you want x86 or x86_64 (emulators), uncomment below*/
+APP_ABI :=arm64-v8a armeabi-v7a
 #APP_OPTIM := debug
 APP_OPTIM := release
