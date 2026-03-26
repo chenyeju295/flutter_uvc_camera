@@ -1,17 +1,19 @@
 part of flutter_uvc_camera;
 
 class PreviewSize {
-  int? width;
-  int? height;
-  PreviewSize({this.width, this.height});
+  final int width;
+  final int height;
+  const PreviewSize({this.width = 0, this.height = 0});
 
   Map<String, dynamic> toMap() {
     return {"width": width, "height": height};
   }
 
-  PreviewSize.fromJson(dynamic json) {
-    width = _parseIntOrNull(json?["width"]);
-    height = _parseIntOrNull(json?["height"]);
+  factory PreviewSize.fromJson(dynamic json) {
+    return PreviewSize(
+      width: _parseIntOrNull(json?["width"]) ?? 0,
+      height: _parseIntOrNull(json?["height"]) ?? 0,
+    );
   }
 
   @override

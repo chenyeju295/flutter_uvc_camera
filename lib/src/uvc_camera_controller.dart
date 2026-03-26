@@ -116,7 +116,6 @@ class UVCCameraController {
   /// Initialize controller
   UVCCameraController() {
     _methodChannel = const MethodChannel(_methodChannelName);
-    _methodChannel?.setMethodCallHandler(_methodChannelHandler);
 
     _initVideoStreamChannel();
 
@@ -358,13 +357,10 @@ class UVCCameraController {
   /// 自动降低帧率以应对性能问题
   void _reduceFrameRate() async {
     try {
-      // Get current frame rate limit - default to 30 if not yet configured
-      final currentFps =
-          await _methodChannel?.invokeMethod('getVideoFrameRateLimit') ?? 30;
+      final currentFps = await getVideoFrameRateLimit() ?? 30;
 
-      // Only reduce if frame rate is above minimum threshold (15 fps)
       if (currentFps > 15) {
-        final newFps = (currentFps * 0.8).round(); // Reduce by 20%
+        final newFps = (currentFps * 0.8).round();
         debugPrint(
             "Automatically reducing frame rate from $currentFps to $newFps due to buffer issues");
         await setVideoFrameRateLimit(newFps);
@@ -380,46 +376,9 @@ class UVCCameraController {
     _videoStreamSubscription?.cancel();
     _videoStreamSubscription = null;
 
-    _methodChannel?.setMethodCallHandler(null);
     _methodChannel = null;
 
     debugPrint("------> UVCCameraController dispose");
-  }
-
-  /// Handle method calls from platform
-  Future<void> _methodChannelHandler(MethodCall call) async {
-    // Legacy MethodChannel paths: delegate to the same handler as EventChannel states.
-    switch (call.method) {
-      case "callFlutter":
-        debugPrint(
-            '------> Received from Android (legacy callFlutter)：${call.arguments}');
-        final args = call.arguments;
-        if (args is Map && args['msg'] is String) {
-          _handleStateEvent(StateEvent(
-            state: CameraPluginStates.pluginMessage,
-            data: {
-              'msg': args['msg'],
-              'msgType': args['type'] ?? 'msg',
-            },
-          ));
-        }
-        break;
-
-      case "takePictureSuccess":
-        if (call.arguments is String) {
-          _handleStateEvent(StateEvent(
-            state: CameraPluginStates.takePictureSuccess,
-            data: {'path': call.arguments},
-          ));
-        }
-        break;
-
-      case "CameraState":
-        if (call.arguments == CameraPluginStates.viewReady) {
-          _handleStateEvent(StateEvent(state: CameraPluginStates.viewReady));
-        }
-        break;
-    }
   }
 
   /// Initialize camera with better timing
@@ -648,15 +607,20 @@ class UVCCameraController {
     }
   }
 
-  /// Capture video
+  /// Start video capture. Returns the file path when recording completes.
+  ///
+  /// If called while already recording, this stops the current recording
+  /// and returns an empty string; the original [captureVideo] call receives
+  /// the actual file path.
   Future<String?> captureVideo() async {
-    // 重置录制计时
-    _currentRecordingTimeMs = 0;
-    _currentRecordingTimeFormatted = "00:00:00";
+    if (!_isRecording) {
+      _currentRecordingTimeMs = 0;
+      _currentRecordingTimeFormatted = "00:00:00";
+    }
 
     try {
       String? path = await _invokeMethodWhenReady('captureVideo');
-      debugPrint("path: $path");
+      debugPrint("captureVideo result: $path");
       return path;
     } catch (e) {
       debugPrint("Error capturing video: $e");
@@ -664,8 +628,12 @@ class UVCCameraController {
     }
   }
 
-  /// Stop video recording (native toggles capture on/off)
+  /// Stop an active video recording.
+  ///
+  /// No-op if not currently recording. Returns empty string on success;
+  /// the actual file path is delivered to the original [captureVideo] call.
   Future<String?> stopVideo() async {
+    if (!_isRecording) return null;
     return captureVideo();
   }
 

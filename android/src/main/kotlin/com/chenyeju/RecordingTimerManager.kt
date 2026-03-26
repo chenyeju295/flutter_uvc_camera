@@ -2,86 +2,65 @@ package com.chenyeju
 
 import android.os.Handler
 import android.os.Looper
-import java.util.Timer
-import java.util.TimerTask
 
 /**
  * 录制计时器管理类
+ *
+ * Uses Handler.postDelayed at 1-second intervals (formatted time has second-level precision).
  */
 class RecordingTimerManager(private val videoStreamHandler: VideoStreamHandler) {
-    private var timer: Timer? = null
     private var recordingStartTime: Long = 0
-    private val mainHandler = Handler(Looper.getMainLooper())
-    
-    /**
-     * 开始录制计时
-     */
+    private var running = false
+    private val handler = Handler(Looper.getMainLooper())
+
+    private val tick: Runnable = object : Runnable {
+        override fun run() {
+            if (!running) return
+            val elapsed = System.currentTimeMillis() - recordingStartTime
+            sendRecordingUpdate(elapsed)
+            handler.postDelayed(this, 1000L)
+        }
+    }
+
     fun startRecording() {
-        stopTimer()
-        
+        stopRecording()
         recordingStartTime = System.currentTimeMillis()
-        timer = Timer()
-        
-        // 发送初始状态
+        running = true
         sendRecordingUpdate(0)
-        
-        // 启动定时器，每100毫秒更新一次
-        timer?.scheduleAtFixedRate(object : TimerTask() {
-            override fun run() {
-                val elapsedTime = System.currentTimeMillis() - recordingStartTime
-                mainHandler.post {
-                    sendRecordingUpdate(elapsedTime)
-                }
-            }
-        }, 100, 100)
+        handler.postDelayed(tick, 1000L)
     }
-    
-    /**
-     * 停止录制计时
-     */
+
     fun stopRecording() {
+        if (!running) return
+        running = false
+        handler.removeCallbacks(tick)
         val finalTime = System.currentTimeMillis() - recordingStartTime
-        sendRecordingUpdate(finalTime, true)
-        stopTimer()
+        sendRecordingUpdate(finalTime, isFinal = true)
     }
-    
-    /**
-     * 发送录制状态更新
-     */
+
     private fun sendRecordingUpdate(elapsedMillis: Long, isFinal: Boolean = false) {
         val seconds = elapsedMillis / 1000
         val minutes = seconds / 60
         val hours = minutes / 60
-        
+
         val formattedTime = String.format(
-            "%02d:%02d:%02d", 
+            "%02d:%02d:%02d",
             hours % 24,
-            minutes % 60, 
+            minutes % 60,
             seconds % 60
         )
-        
+
         val data = mapOf(
             "elapsedMillis" to elapsedMillis,
             "formattedTime" to formattedTime,
             "isFinal" to isFinal
         )
-        
+
         videoStreamHandler.sendState("RECORDING_TIME", data)
     }
-    
-    /**
-     * 停止计时器
-     */
-    private fun stopTimer() {
-        timer?.cancel()
-        timer?.purge()
-        timer = null
-    }
-    
-    /**
-     * 释放资源
-     */
+
     fun release() {
-        stopTimer()
+        running = false
+        handler.removeCallbacks(tick)
     }
-} 
+}

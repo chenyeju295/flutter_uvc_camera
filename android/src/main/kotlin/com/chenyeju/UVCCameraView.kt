@@ -1,15 +1,14 @@
 package com.chenyeju
 
-import android.Manifest
 import android.app.Activity
 import android.app.Application
 import android.app.Service
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.pm.PackageManager
 import android.graphics.SurfaceTexture
 import android.hardware.usb.UsbDevice
 import android.media.MediaScannerConnection
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -21,7 +20,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
-import android.os.Build
 import com.chenyeju.databinding.ActivityMainBinding
 import com.google.gson.Gson
 import com.jiangdg.ausbc.MultiCameraClient
@@ -30,25 +28,18 @@ import com.jiangdg.ausbc.callback.ICaptureCallBack
 import com.jiangdg.ausbc.callback.IDeviceConnectCallBack
 import com.jiangdg.ausbc.callback.IEncodeDataCallBack
 import com.jiangdg.ausbc.callback.IImageDataCallBack
-import com.jiangdg.ausbc.camera.bean.CameraRequest
-import com.jiangdg.ausbc.render.env.RotateType
 import com.jiangdg.ausbc.utils.Logger
 import com.jiangdg.ausbc.utils.SettableFuture
-import com.jiangdg.ausbc.utils.ToastUtils
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
-import com.jiangdg.ausbc.widget.CaptureMediaView
 import com.jiangdg.ausbc.widget.IAspectRatio
 import com.jiangdg.usb.USBMonitor
 import com.jiangdg.uvc.IButtonCallback
-import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
-import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal class UVCCameraView(
     private val mContext: Context,
-    private val mChannel: MethodChannel,
     private val params: Any?,
     private val videoStreamHandler: VideoStreamHandler,
     private val recordingTimerManager: RecordingTimerManager
@@ -72,7 +63,7 @@ internal class UVCCameraView(
     // New managers for better organization
     private val stateManager = CameraStateManager(videoStreamHandler)
     private val configManager = CameraConfigManager()
-    private val featuresManager = CameraFeaturesManager(mChannel)
+    private val featuresManager = CameraFeaturesManager()
     
     private val isStreaming = AtomicBoolean(false)
     // Handler for periodic FPS updates
@@ -111,14 +102,11 @@ internal class UVCCameraView(
 
     companion object {
         private const val TAG = "CameraView"
+        private val gson = Gson()
     }
 
     override fun getView(): View {
         return mViewBinding.root
-    }
-
-    private fun setCameraERRORState(msg: String? = null) {
-        stateManager.updateState(CameraStateManager.CameraState.ERROR, msg)
     }
 
     /**
@@ -252,23 +240,9 @@ internal class UVCCameraView(
         mCameraClient = MultiCameraClient(view.context, object : IDeviceConnectCallBack {
             override fun onAttachDev(device: UsbDevice?) {
                 device ?: return
-                view.context.let {
-                    if (mCameraMap.containsKey(device.deviceId)) {
-                        return
-                    }
-                    generateCamera(it, device).apply {
-                        mCameraMap[device.deviceId] = this
-                    }
-                    if (mRequestPermission.get()) {
-                        return@let
-                    }
-                    getDefaultCamera()?.apply {
-                        if (vendorId == device.vendorId && productId == device.productId) {
-                            Logger.i(TAG, "default camera pid: $productId, vid: $vendorId")
-                            requestPermission(device)
-                        }
-                        return@let
-                    }
+                if (mCameraMap.containsKey(device.deviceId)) return
+                mCameraMap[device.deviceId] = generateCamera(view.context, device)
+                if (!mRequestPermission.get()) {
                     requestPermission(device)
                 }
             }
@@ -414,7 +388,7 @@ internal class UVCCameraView(
             callFlutter("Get camera preview size failed")
             return null
         }
-        return Gson().toJson(previewSizes)
+        return gson.toJson(previewSizes)
     }
 
     /**
@@ -457,9 +431,9 @@ internal class UVCCameraView(
     }
 
     fun updateResolution(arguments: Any?) {
-        val map = arguments as HashMap<*, *>
-        val width = map["width"] as Int
-        val height = map["height"] as Int
+        val map = arguments as? Map<*, *> ?: return
+        val width = (map["width"] as? Number)?.toInt() ?: return
+        val height = (map["height"] as? Number)?.toInt() ?: return
         configManager.updateResolution(width, height)
         getCurrentCamera()?.updateResolution(width, height)
     }
@@ -508,7 +482,7 @@ internal class UVCCameraView(
             callFlutter("Get camera info failed")
             return null
         }
-        return Gson().toJson(size)
+        return gson.toJson(size)
     }
     
     // New methods for camera features
@@ -595,10 +569,6 @@ internal class UVCCameraView(
         return CameraUVC(ctx, device, configManager.getCameraParams())
     }
 
-    fun getDefaultCamera(): UsbDevice? = null
-    
-    fun getDefaultEffect() = getCurrentCamera()?.getDefaultEffect()
-
     private fun captureImage(callBack: ICaptureCallBack, savePath: String? = null) {
         getCurrentCamera()?.captureImage(callBack, savePath)
     }
@@ -611,25 +581,14 @@ internal class UVCCameraView(
         getCurrentCamera()?.captureVideoStart(callBack, path, durationInSec)
     }
 
-    fun switchCamera(usbDevice: UsbDevice) {
-        getCurrentCamera()?.closeCamera()
-        Handler(Looper.getMainLooper()).postDelayed({
-            requestPermission(usbDevice)
-        }, 500L)
-    }
-
     fun openCamera(st: IAspectRatio? = null) {
-        when (st) {
-            is TextureView, is SurfaceView -> {
-                st
-            }
-            else -> {
-                null
-            }
-        }.apply {
-            getCurrentCamera()?.openCamera(this, configManager.buildCameraRequest())
-            getCurrentCamera()?.setCameraStateCallBack(this@UVCCameraView)
+        val cameraView = when (st) {
+            is TextureView -> st
+            is SurfaceView -> st
+            else -> null
         }
+        getCurrentCamera()?.openCamera(cameraView, configManager.buildCameraRequest())
+        getCurrentCamera()?.setCameraStateCallBack(this)
     }
 
     fun closeCamera() {
@@ -835,6 +794,7 @@ internal class UVCCameraView(
         if (isCapturingVideoOrAudio.get()) {
             recordingTimerManager.stopRecording()
             captureVideoStop()
+            callback.onSuccess("")
             return
         }
         

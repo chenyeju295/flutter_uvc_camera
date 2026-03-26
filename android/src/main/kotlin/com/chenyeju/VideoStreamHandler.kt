@@ -251,9 +251,12 @@ class VideoStreamHandler : EventChannel.StreamHandler {
         event["isKeyFrame"] = isKeyFrame
         mainHandler.post {
             try {
-                sink.success(event)
+                val currentSink = eventSink
+                if (currentSink != null) {
+                    currentSink.success(event)
+                }
             } catch (e: Exception) {
-                sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
+                // Sink may have been cancelled between post and execution; safe to ignore.
             } finally {
                 if (isVideoFrame) {
                     pendingVideoSend.set(false)

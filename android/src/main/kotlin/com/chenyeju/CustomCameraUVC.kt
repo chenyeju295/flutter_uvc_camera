@@ -93,7 +93,6 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
             mUvcCamera?.getSupportedSizeList(UVCCamera.FRAME_FORMAT_YUYV)
         }?.let { sizeList ->
             if (mCameraPreviewSize.isEmpty()) {
-                mCameraPreviewSize.clear()
                 sizeList.forEach { size->
                     val width = size.width
                     val height = size.height
@@ -138,6 +137,7 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
             closeCamera()
             postStateEvent(ICameraStateCallBack.State.ERROR, "open camera failed ${e.localizedMessage}")
             Logger.e(TAG, "open camera failed.", e)
+            return
         }
 
         var minFps = 10
@@ -281,7 +281,6 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
             val title = savePath ?: "IMG_UVC_$date"
             val displayName = savePath ?: "$title.jpg"
             val path = savePath ?: "$mCameraDir/$displayName"
-            val location = Utils.getGpsLocation(ctx)
             val width = mCameraRequest!!.previewWidth
             val height = mCameraRequest!!.previewHeight
             val ret = MediaUtils.saveYuv2Jpeg(path, data, width, height)
