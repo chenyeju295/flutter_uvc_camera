@@ -22,6 +22,14 @@ class CameraStateManager(private val videoStreamHandler: VideoStreamHandler) {
      * Update camera state and notify Flutter
      */
     fun updateState(state: CameraState, message: String? = null) {
+        val data = if (message != null) mapOf<String, Any>("msg" to message) else null
+        updateState(state, data)
+    }
+
+    /**
+     * Update camera state with arbitrary data and notify Flutter
+     */
+    fun updateState(state: CameraState, data: Map<String, Any>?) {
         currentState = state
         val stateName = when (state) {
             CameraState.CLOSED -> "CLOSED"
@@ -30,13 +38,6 @@ class CameraStateManager(private val videoStreamHandler: VideoStreamHandler) {
             CameraState.CLOSING -> "CLOSING"
             CameraState.ERROR -> "ERROR"
         }
-        
-        val data = if (message != null) {
-            mapOf("msg" to message)
-        } else {
-            null
-        }
-        
         videoStreamHandler.sendState(stateName, data)
     }
 

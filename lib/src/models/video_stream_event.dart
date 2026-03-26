@@ -93,12 +93,16 @@ class StreamStatsEvent extends StateEvent {
   final int droppedAudioFrames;
   final int videoFps;
 
+  /// Native render FPS (from UVC frame callback). 0 when not available.
+  final int renderFps;
+
   StreamStatsEvent({
     required this.totalVideoFrames,
     required this.totalAudioFrames,
     required this.droppedVideoFrames,
     required this.droppedAudioFrames,
     required this.videoFps,
+    this.renderFps = 0,
     Map<String, dynamic>? data,
   }) : super(state: 'STREAM_STATS', data: data);
 
@@ -112,6 +116,7 @@ class StreamStatsEvent extends StateEvent {
       droppedVideoFrames: _parseIntOrZero(map['droppedVideoFrames']),
       droppedAudioFrames: _parseIntOrZero(map['droppedAudioFrames']),
       videoFps: _parseIntOrZero(map['videoFps']),
+      renderFps: _parseIntOrZero(map['renderFps']),
       data: rawData.isNotEmpty ? rawData : null,
     );
   }

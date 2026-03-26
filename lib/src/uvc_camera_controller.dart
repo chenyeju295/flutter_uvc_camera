@@ -92,6 +92,12 @@ class UVCCameraController {
   @Deprecated('Use previewSizes instead')
   List<PreviewSize> get getPreviewSizes => _previewSizes;
 
+  PreviewSize? _actualPreviewSize;
+
+  /// Actual preview resolution negotiated by UVC after camera open.
+  /// Updated automatically when the camera reports OPENED state.
+  PreviewSize? get actualPreviewSize => _actualPreviewSize;
+
   /// Camera features cache
   CameraFeatures? _cameraFeatures;
 
@@ -236,6 +242,11 @@ class UVCCameraController {
     switch (event.state) {
       case CameraPluginStates.opened:
         _cameraState = UVCCameraState.opened;
+        final pw = event.data?['previewWidth'];
+        final ph = event.data?['previewHeight'];
+        if (pw is int && ph is int && pw > 0 && ph > 0) {
+          _actualPreviewSize = PreviewSize(width: pw, height: ph);
+        }
         cameraStateCallback?.call(UVCCameraState.opened);
         return;
       case CameraPluginStates.closed:
@@ -447,6 +458,17 @@ class UVCCameraController {
       return result == true;
     } catch (e) {
       debugPrint("Error stopping mic playback: $e");
+      return false;
+    }
+  }
+
+  /// Query whether mic playback is currently active
+  Future<bool> isMicPlaying() async {
+    try {
+      final result = await _invokeMethodWhenReady<bool>('isMicPlaying');
+      return result == true;
+    } catch (e) {
+      debugPrint("Error querying mic state: $e");
       return false;
     }
   }

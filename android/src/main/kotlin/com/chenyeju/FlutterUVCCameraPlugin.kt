@@ -161,6 +161,9 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             "stopPlayMic" -> {
                 result.success(factory?.cameraView?.stopPlayMic() ?: false)
             }
+            "isMicPlaying" -> {
+                result.success(factory?.cameraView?.isMicPlaying() ?: false)
+            }
             "setVideoFrameRateLimit" -> {
                 val fps = call.argument<Int>("fps") ?: 30
                 videoStreamHandler.frameRateLimit = fps

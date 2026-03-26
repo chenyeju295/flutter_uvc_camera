@@ -24,6 +24,9 @@ class CameraPluginStates {
   static const String streamStarted = 'STREAM_STARTED';
   static const String streamStopped = 'STREAM_STOPPED';
   static const String streamStats = 'STREAM_STATS';
+
+  @Deprecated(
+      'renderFps is now included in STREAM_STATS via StreamStatsEvent.renderFps')
   static const String renderFps = 'RENDER_FPS';
 
   static const String recordingTime = 'RECORDING_TIME';

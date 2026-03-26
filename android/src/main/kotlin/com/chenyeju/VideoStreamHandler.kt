@@ -47,6 +47,9 @@ class VideoStreamHandler : EventChannel.StreamHandler {
     private var droppedVideoFrames = 0L
     private var droppedAudioFrames = 0L
 
+    /** Provider for native render FPS (e.g. from CameraUVC). Set by UVCCameraView when streaming. */
+    @Volatile var renderFpsProvider: (() -> Int)? = null
+
     /**
      * Backpressure: avoid posting every frame to the main thread.
      * Keep only one in-flight send slot for video/audio, drop extra frames early.
@@ -64,16 +67,17 @@ class VideoStreamHandler : EventChannel.StreamHandler {
 
     private val statsTicker = object : Runnable {
         override fun run() {
-            sendState(
-                "STREAM_STATS",
-                mapOf(
-                    "totalVideoFrames" to totalVideoFrames,
-                    "totalAudioFrames" to totalAudioFrames,
-                    "droppedVideoFrames" to droppedVideoFrames,
-                    "droppedAudioFrames" to droppedAudioFrames,
-                    "videoFps" to currentFps
-                )
-            )
+            val stats = HashMap<String, Any>(6)
+            stats["totalVideoFrames"] = totalVideoFrames
+            stats["totalAudioFrames"] = totalAudioFrames
+            stats["droppedVideoFrames"] = droppedVideoFrames
+            stats["droppedAudioFrames"] = droppedAudioFrames
+            stats["videoFps"] = currentFps
+            val renderFps = renderFpsProvider?.invoke() ?: 0
+            if (renderFps > 0) {
+                stats["renderFps"] = renderFps
+            }
+            sendState("STREAM_STATS", stats)
             mainHandler.postDelayed(this, 1000L)
         }
     }
@@ -387,7 +391,11 @@ class VideoStreamHandler : EventChannel.StreamHandler {
             event["type"] = "STATE"
             event["state"] = state
             if (data != null) {
-                event.putAll(data)
+                for ((key, value) in data) {
+                    if (key != "type" && key != "state") {
+                        event[key] = value
+                    }
+                }
             }
             sink.success(event)
         } catch (_: Exception) {

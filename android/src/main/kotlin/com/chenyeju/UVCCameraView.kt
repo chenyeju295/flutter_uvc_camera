@@ -9,8 +9,6 @@ import android.graphics.SurfaceTexture
 import android.hardware.usb.UsbDevice
 import android.media.MediaScannerConnection
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.SurfaceView
@@ -35,6 +33,7 @@ import com.jiangdg.ausbc.widget.IAspectRatio
 import com.jiangdg.usb.USBMonitor
 import com.jiangdg.uvc.IButtonCallback
 import io.flutter.plugin.platform.PlatformView
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -51,10 +50,11 @@ internal class UVCCameraView(
     private var mActivity: Activity? = getActivityFromContext(mContext)
     private var mCameraView: IAspectRatio? = null
     private var mCameraClient: MultiCameraClient? = null
-    private val mCameraMap = hashMapOf<Int, MultiCameraClient.ICamera>()
+    private val mCameraMap = ConcurrentHashMap<Int, MultiCameraClient.ICamera>()
     private var mCurrentCamera: SettableFuture<MultiCameraClient.ICamera>? = null
     @Volatile private var mResolvedCamera: MultiCameraClient.ICamera? = null
     private val isCapturingVideoOrAudio = AtomicBoolean(false)
+    private val isDisposed = AtomicBoolean(false)
     private var pendingOperation: PendingOperation = PendingOperation.NONE
     private val mRequestPermission: AtomicBoolean by lazy {
         AtomicBoolean(false)
@@ -66,34 +66,7 @@ internal class UVCCameraView(
     private val featuresManager = CameraFeaturesManager()
     
     private val isStreaming = AtomicBoolean(false)
-    // Handler for periodic FPS updates
-    private val fpsReportHandler = Handler(Looper.getMainLooper())
-    private val fpsReportRunnable: Runnable = object : Runnable {
-        override fun run() {
-            if (isStreaming.get()) {
-                // Get FPS from camera if available
-                val camera = getCurrentCamera()
-                if (camera is CameraUVC) {
-                    try {
-                        // Get render FPS from camera implementation
-                        val renderFps = camera.getRenderFps()
-                        if (renderFps > 0) {
-                            Logger.i(TAG, "camera render frame rate is $renderFps fps-->gl_render")
-                            // Send as state update
-                            val data = HashMap<String, Any>()
-                            data["renderFps"] = renderFps
-                            videoStreamHandler.sendState("RENDER_FPS", data)
-                        }
-                    } catch (e: Exception) {
-                        Logger.e(TAG, "Error getting render FPS", e)
-                    }
-                }
-                
-                // Schedule next update
-                fpsReportHandler.postDelayed(this, 1000)
-            }
-        }
-    }
+    private val isMicPlaying = AtomicBoolean(false)
     
     init {
         configManager.updateFromParams(params)
@@ -185,6 +158,7 @@ internal class UVCCameraView(
     }
 
     override fun dispose() {
+        if (isDisposed.getAndSet(true)) return
         if (isCapturingVideoOrAudio.getAndSet(false)) {
             recordingTimerManager.stopRecording()
             captureVideoStop()
@@ -197,7 +171,7 @@ internal class UVCCameraView(
         mViewBinding.fragmentContainer.removeAllViews()
         stateManager.updateState(CameraStateManager.CameraState.CLOSED)
         recordingTimerManager.release()
-        fpsReportHandler.removeCallbacks(fpsReportRunnable)
+        videoStreamHandler.renderFpsProvider = null
     }
 
     override fun onCameraState(
@@ -207,24 +181,26 @@ internal class UVCCameraView(
     ) {
         when (code) {
             ICameraStateCallBack.State.OPENED -> {
-                stateManager.updateState(CameraStateManager.CameraState.OPENED)
                 setButtonCallback()
                 // Issue #47: UVC may negotiate a different preview size than requested.
-                // MultiCameraClient sets aspect from pre-open request dimensions; after open,
-                // sync actual size and re-apply display aspect (including 90°/270° swap) so the
-                // TextureView matches the rotated frame and does not stretch.
+                // Sync actual size and re-apply display aspect so the view matches.
+                var openedData: Map<String, Any>? = null
                 try {
                     getCurrentCamera()?.getCameraRequest()?.let { req ->
                         configManager.updateResolution(req.previewWidth, req.previewHeight)
+                        openedData = mapOf(
+                            "previewWidth" to req.previewWidth,
+                            "previewHeight" to req.previewHeight
+                        )
                         val cv = mCameraView
                         if (configManager.getAspectRatioShow() && cv is IAspectRatio) {
-                            // Best-effort: re-apply after layout.
                             (cv as? View)?.post { applyDisplayAspectRatio(cv) } ?: applyDisplayAspectRatio(cv)
                         }
                     }
                 } catch (e: Exception) {
                     Logger.e(TAG, "apply display aspect after camera open failed", e)
                 }
+                stateManager.updateState(CameraStateManager.CameraState.OPENED, openedData)
             }
             ICameraStateCallBack.State.CLOSED -> {
                 stateManager.updateState(CameraStateManager.CameraState.CLOSED)
@@ -338,8 +314,10 @@ internal class UVCCameraView(
             }
 
             override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                unRegisterMultiCamera()
-                return false
+                if (!isDisposed.get()) {
+                    unRegisterMultiCamera()
+                }
+                return true
             }
 
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
@@ -699,9 +677,11 @@ internal class UVCCameraView(
         camera.captureStreamStart()
         Logger.i(TAG, "Camera stream started")
         isStreaming.set(true)
+        videoStreamHandler.renderFpsProvider = {
+            (getCurrentCamera() as? CameraUVC)?.getRenderFps() ?: 0
+        }
         videoStreamHandler.startStatsTicker()
         videoStreamHandler.sendState("STREAM_STARTED")
-        fpsReportHandler.post(fpsReportRunnable)
     }
 
     fun captureStreamStop() {
@@ -709,9 +689,9 @@ internal class UVCCameraView(
         getCurrentCamera()?.captureStreamStop()
         Logger.i(TAG, "Camera stream stopped")
         isStreaming.set(false)
+        videoStreamHandler.renderFpsProvider = null
         videoStreamHandler.stopStatsTicker()
         videoStreamHandler.sendState("STREAM_STOPPED")
-        fpsReportHandler.removeCallbacks(fpsReportRunnable)
     }
 
     private fun setEncodeDataCallBack() {
@@ -852,6 +832,7 @@ internal class UVCCameraView(
         }
         return try {
             camera.startPlayMic(null)
+            isMicPlaying.set(true)
             true
         } catch (e: Exception) {
             callFlutter("Failed to start mic: ${e.message}")
@@ -863,10 +844,13 @@ internal class UVCCameraView(
         val camera = getCurrentCamera() ?: return false
         return try {
             camera.stopPlayMic()
+            isMicPlaying.set(false)
             true
         } catch (e: Exception) {
             callFlutter("Failed to stop mic: ${e.message}")
             false
         }
     }
+
+    fun isMicPlaying(): Boolean = isMicPlaying.get()
 }
