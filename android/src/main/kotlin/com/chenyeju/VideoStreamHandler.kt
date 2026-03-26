@@ -1,7 +1,6 @@
 package com.chenyeju
 
 import android.os.Handler
-import android.os.HandlerThread
 import android.os.Looper
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
@@ -15,12 +14,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 class VideoStreamHandler : EventChannel.StreamHandler {
     private var eventSink: EventSink? = null
 
-    /**
-     * Background worker to reduce main-thread work per frame.
-     * We still deliver [EventSink.success] on main thread for safety.
-     */
-    private var streamThread: HandlerThread? = null
-    private var streamHandler: Handler? = null
     
     // 视频帧计数器，用于帧率控制
     private var frameCounter = 0
@@ -87,20 +80,7 @@ class VideoStreamHandler : EventChannel.StreamHandler {
     
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    private fun ensureStreamThread() {
-        if (streamThread != null && streamHandler != null) return
-        streamThread = HandlerThread("uvc_stream_events").also { it.start() }
-        streamHandler = Handler(streamThread!!.looper)
-    }
-
-    private fun stopStreamThread() {
-        streamThread?.quitSafely()
-        streamThread = null
-        streamHandler = null
-    }
-    
     override fun onListen(arguments: Any?, events: EventSink?) {
-        ensureStreamThread()
         eventSink = events
         pendingVideoSend.set(false)
         pendingAudioSend.set(false)
@@ -117,7 +97,6 @@ class VideoStreamHandler : EventChannel.StreamHandler {
                 flushPendingStates(events)
             }
         }
-        mainHandler.postDelayed(statsTicker, 1000L)
     }
     
     override fun onCancel(arguments: Any?) {
@@ -128,7 +107,6 @@ class VideoStreamHandler : EventChannel.StreamHandler {
         synchronized(pendingLock) {
             pendingStates.clear()
         }
-        stopStreamThread()
     }
     
     /**
@@ -253,67 +231,50 @@ class VideoStreamHandler : EventChannel.StreamHandler {
             return
         }
 
-        // Determine whether this is a keyframe (H264 only). Best-effort.
-        val isKeyFrame = if (isVideoFrame) {
-            isH264KeyFrame(dataCopy)
-        } else {
-            false
-        }
+        // Only scan for keyframes when the caller actually needs the information.
+        val needKeyFrameInfo = isVideoFrame && videoKeyframesOnly
+        val isKeyFrame = if (needKeyFrameInfo) isH264KeyFrame(dataCopy) else false
 
-        if (isVideoFrame && videoKeyframesOnly && !isKeyFrame) {
+        if (needKeyFrameInfo && !isKeyFrame) {
             droppedVideoFrames++
-            // Release the backpressure slot since we won't post an event.
             pendingVideoSend.set(false)
             return
         }
         
-        // Build the event map off the main thread, then deliver on main.
-        val worker = streamHandler
-        if (worker != null) {
-            worker.post {
-                val event = HashMap<String, Any>(7)
-                event["type"] = type
-                event["data"] = dataCopy
-                event["timestamp"] = timestamp
-                event["size"] = size
-                event["fps"] = fpsForEvent
-                event["isKeyFrame"] = isKeyFrame
-                mainHandler.post {
-                    try {
-                        sink.success(event)
-                    } catch (e: Exception) {
-                        sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
-                    } finally {
-                        if (isVideoFrame) {
-                            pendingVideoSend.set(false)
-                        } else {
-                            pendingAudioSend.set(false)
-                        }
-                    }
-                }
-            }
-        } else {
-            mainHandler.post {
-                try {
-                    val event = HashMap<String, Any>(7)
-                    event["type"] = type
-                    event["data"] = dataCopy
-                    event["timestamp"] = timestamp
-                    event["size"] = size
-                    event["fps"] = fpsForEvent
-                    event["isKeyFrame"] = isKeyFrame
-                    sink.success(event)
-                } catch (e: Exception) {
-                    sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
-                } finally {
-                    if (isVideoFrame) {
-                        pendingVideoSend.set(false)
-                    } else {
-                        pendingAudioSend.set(false)
-                    }
+        // Build event map on the calling thread (cheap), post once to main thread.
+        val event = HashMap<String, Any>(7)
+        event["type"] = type
+        event["data"] = dataCopy
+        event["timestamp"] = timestamp
+        event["size"] = size
+        event["fps"] = fpsForEvent
+        event["isKeyFrame"] = isKeyFrame
+        mainHandler.post {
+            try {
+                sink.success(event)
+            } catch (e: Exception) {
+                sink.error("VIDEO_STREAM_ERROR", "Error processing video frame: ${e.message}", null)
+            } finally {
+                if (isVideoFrame) {
+                    pendingVideoSend.set(false)
+                } else {
+                    pendingAudioSend.set(false)
                 }
             }
         }
+    }
+
+    fun startStatsTicker() {
+        mainHandler.removeCallbacks(statsTicker)
+        totalVideoFrames = 0L
+        totalAudioFrames = 0L
+        droppedVideoFrames = 0L
+        droppedAudioFrames = 0L
+        mainHandler.postDelayed(statsTicker, 1000L)
+    }
+
+    fun stopStatsTicker() {
+        mainHandler.removeCallbacks(statsTicker)
     }
 
     fun setVideoSampleEveryN(n: Int) {

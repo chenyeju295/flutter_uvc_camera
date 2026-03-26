@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
@@ -22,23 +23,35 @@ class UVCCameraController {
   /// Photo capture button callback
   Function(String path)? clickTakePictureButtonCallback;
 
-  /// Get current camera state
+  /// Current camera state
+  UVCCameraState get cameraState => _cameraState;
+
+  @Deprecated('Use cameraState instead')
   UVCCameraState get getCameraState => _cameraState;
 
   String _cameraErrorMsg = '';
 
-  /// Get camera error message
+  /// Camera error message
+  String get cameraErrorMsg => _cameraErrorMsg;
+
+  @Deprecated('Use cameraErrorMsg instead')
   String get getCameraErrorMsg => _cameraErrorMsg;
 
   String _takePicturePath = '';
 
-  /// Get path of last captured picture
+  /// Path of last captured picture
+  String get takePicturePath => _takePicturePath;
+
+  @Deprecated('Use takePicturePath instead')
   String get getTakePicturePath => _takePicturePath;
 
-  final List<String> _callStrings = [];
+  final ListQueue<String> _callStrings = ListQueue<String>();
 
-  /// Get call history
-  List<String> get getCallStrings => _callStrings;
+  /// Call history
+  List<String> get callStrings => _callStrings.toList();
+
+  @Deprecated('Use callStrings instead')
+  List<String> get getCallStrings => callStrings;
 
   /// Message callback
   Function(String)? msgCallback;
@@ -73,7 +86,10 @@ class UVCCameraController {
 
   List<PreviewSize> _previewSizes = [];
 
-  /// Get available preview sizes
+  /// Available preview sizes
+  List<PreviewSize> get previewSizes => _previewSizes;
+
+  @Deprecated('Use previewSizes instead')
   List<PreviewSize> get getPreviewSizes => _previewSizes;
 
   /// Camera features cache
@@ -82,10 +98,11 @@ class UVCCameraController {
   /// Get camera features
   CameraFeatures? get cameraFeatures => _cameraFeatures;
 
+  bool _isDisposed = false;
   MethodChannel? _methodChannel;
   EventChannel? _videoStreamChannel;
   StreamSubscription? _videoStreamSubscription;
-  final Completer<void> _viewReadyCompleter = Completer<void>();
+  Completer<void> _viewReadyCompleter = Completer<void>();
   int _streamErrorCount = 0;
   bool _isRecording = false;
   bool _autoAdaptEnabled = false;
@@ -161,17 +178,18 @@ class UVCCameraController {
 
     switch (event.state) {
       case CameraPluginStates.viewReady:
-        if (!_viewReadyCompleter.isCompleted) {
-          _viewReadyCompleter.complete();
+        if (_viewReadyCompleter.isCompleted) {
+          _viewReadyCompleter = Completer<void>();
         }
+        _viewReadyCompleter.complete();
         return;
       case CameraPluginStates.pluginMessage:
         final msg = event.data?['msg'] as String?;
         if (msg != null) {
           debugPrint('------> Plugin message: $msg');
-          _callStrings.add(msg);
+          _callStrings.addLast(msg);
           if (_callStrings.length > 200) {
-            _callStrings.removeAt(0);
+            _callStrings.removeFirst();
           }
           msgCallback?.call(msg);
         }
@@ -329,8 +347,10 @@ class UVCCameraController {
   void _reconnectVideoStreamChannel() {
     _videoStreamSubscription?.cancel();
     _videoStreamSubscription = null;
+    if (_isDisposed) return;
     final retryDelayMs = (_streamErrorCount * 500).clamp(500, 5000);
     Future.delayed(Duration(milliseconds: retryDelayMs), () {
+      if (_isDisposed) return;
       _initVideoStreamChannel();
     });
   }
@@ -356,6 +376,7 @@ class UVCCameraController {
 
   /// Dispose controller resources
   void dispose() {
+    _isDisposed = true;
     _videoStreamSubscription?.cancel();
     _videoStreamSubscription = null;
 
@@ -567,6 +588,22 @@ class UVCCameraController {
   /// Get current camera request parameters
   Future<String?> getCurrentCameraRequestParameters() async {
     return await _invokeMethodWhenReady('getCurrentCameraRequestParameters');
+  }
+
+  /// Issue #26: get actual preview surface rectangle info (for overlays).
+  ///
+  /// Call it after the camera is opened and layout is settled (e.g. on `opened` state).
+  Future<PreviewSurfaceInfo?> getPreviewSurfaceInfo() async {
+    try {
+      final result = await _invokeMethodWhenReady('getPreviewSurfaceInfo');
+      if (result is Map) {
+        return PreviewSurfaceInfo.fromMap(Map<dynamic, dynamic>.from(result));
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error getting preview surface info: $e");
+      return null;
+    }
   }
 
   /// Update camera resolution
@@ -807,6 +844,10 @@ class UVCCameraController {
 
   Future<T?> _invokeMethodWhenReady<T>(String method,
       [dynamic arguments]) async {
+    if (_isDisposed) {
+      debugPrint("UVCCameraController: cannot invoke '$method' after dispose");
+      return null;
+    }
     await _waitForViewReady();
     return _methodChannel?.invokeMethod<T>(method, arguments);
   }

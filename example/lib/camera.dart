@@ -18,6 +18,13 @@ class _CameraTestState extends State<CameraTest> {
   bool isRecording = false;
   String recordingTime = "00:00:00";
 
+  // Issue #26: overlay align with the real preview "image area".
+  PreviewSurfaceInfo? _previewSurfaceInfo;
+  bool _showOverlay = true;
+
+  static const double _previewW = 300;
+  static const double _previewH = 300;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +43,17 @@ class _CameraTestState extends State<CameraTest> {
           isRecording = false;
         }
       });
+    };
+
+    cameraController.cameraStateCallback = (state) async {
+      if (!mounted) return;
+      if (state == UVCCameraState.opened) {
+        // Wait a tick for AndroidView measurement/layout.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        final info = await cameraController.getPreviewSurfaceInfo();
+        if (!mounted) return;
+        setState(() => _previewSurfaceInfo = info);
+      }
     };
   }
 
@@ -261,17 +279,53 @@ class _CameraTestState extends State<CameraTest> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: UVCCameraView(
-              cameraController: cameraController,
-              // CameraTest is mainly preview + media capture; keep it lightweight.
-              params: const UVCCameraViewParamsEntity(
-                frameFormat: 0,
-                streamProfile:
-                    UVCCameraViewParamsEntity.streamProfileLightweight,
-              ),
-              width: 300,
-              height: 300,
+            child: Stack(
+              children: [
+                UVCCameraView(
+                  cameraController: cameraController,
+                  // CameraTest is mainly preview + media capture; keep it lightweight.
+                  params: const UVCCameraViewParamsEntity(
+                    frameFormat: 0,
+                    streamProfile:
+                        UVCCameraViewParamsEntity.streamProfileLightweight,
+                  ),
+                  width: _previewW,
+                  height: _previewH,
+                ),
+                if (_showOverlay && _previewSurfaceInfo != null)
+                  Positioned(
+                    left: _previewSurfaceInfo!.offsetLeftRatio * _previewW,
+                    top: _previewSurfaceInfo!.offsetTopRatio * _previewH,
+                    width: _previewSurfaceInfo!.surfaceWidthRatio * _previewW,
+                    height: _previewSurfaceInfo!.surfaceHeightRatio * _previewH,
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.yellowAccent,
+                            width: 2,
+                          ),
+                          color: Colors.yellowAccent.withOpacity(0.12),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
+          ),
+        ),
+
+        // Toggle overlay (demo control).
+        Positioned(
+          top: 6,
+          right: 6,
+          child: IconButton(
+            tooltip: _showOverlay ? 'Hide overlay' : 'Show overlay',
+            icon: Icon(
+              _showOverlay ? Icons.visibility : Icons.visibility_off,
+              color: Colors.white,
+            ),
+            onPressed: () => setState(() => _showOverlay = !_showOverlay),
           ),
         ),
 

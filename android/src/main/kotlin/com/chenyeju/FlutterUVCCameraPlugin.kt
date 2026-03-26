@@ -257,6 +257,10 @@ class FlutterUVCCameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(factory?.getCurrentCameraRequestParameters())
             }
 
+            "getPreviewSurfaceInfo" -> {
+                result.success(factory?.getPreviewSurfaceInfo())
+            }
+
             "updateResolution" -> {
                 factory?.updateResolution(call.arguments)
                 result.success(null)

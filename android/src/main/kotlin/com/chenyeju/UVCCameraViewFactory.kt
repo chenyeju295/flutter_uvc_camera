@@ -83,6 +83,8 @@ class UVCCameraViewFactory(
     
     fun getCurrentCameraRequestParameters() = cameraView?.getCurrentCameraRequestParameters()
 
+    fun getPreviewSurfaceInfo() = cameraView?.getPreviewSurfaceInfo()
+
     fun closeCamera() {
         cameraView?.closeCamera()
     }

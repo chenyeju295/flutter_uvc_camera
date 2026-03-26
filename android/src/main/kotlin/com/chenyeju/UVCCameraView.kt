@@ -62,7 +62,8 @@ internal class UVCCameraView(
     private var mCameraClient: MultiCameraClient? = null
     private val mCameraMap = hashMapOf<Int, MultiCameraClient.ICamera>()
     private var mCurrentCamera: SettableFuture<MultiCameraClient.ICamera>? = null
-    private var isCapturingVideoOrAudio: Boolean = false
+    @Volatile private var mResolvedCamera: MultiCameraClient.ICamera? = null
+    private val isCapturingVideoOrAudio = AtomicBoolean(false)
     private var pendingOperation: PendingOperation = PendingOperation.NONE
     private val mRequestPermission: AtomicBoolean by lazy {
         AtomicBoolean(false)
@@ -73,13 +74,12 @@ internal class UVCCameraView(
     private val configManager = CameraConfigManager()
     private val featuresManager = CameraFeaturesManager(mChannel)
     
-    // Track streaming state
-    private var isStreaming = false
+    private val isStreaming = AtomicBoolean(false)
     // Handler for periodic FPS updates
     private val fpsReportHandler = Handler(Looper.getMainLooper())
     private val fpsReportRunnable: Runnable = object : Runnable {
         override fun run() {
-            if (isStreaming) {
+            if (isStreaming.get()) {
                 // Get FPS from camera if available
                 val camera = getCurrentCamera()
                 if (camera is CameraUVC) {
@@ -197,12 +197,11 @@ internal class UVCCameraView(
     }
 
     override fun dispose() {
-        if (isCapturingVideoOrAudio) {
+        if (isCapturingVideoOrAudio.getAndSet(false)) {
             recordingTimerManager.stopRecording()
             captureVideoStop()
-            isCapturingVideoOrAudio = false
         }
-        if (isStreaming) {
+        if (isStreaming.get()) {
             captureStreamStop()
         }
         stopPlayMic()
@@ -210,9 +209,6 @@ internal class UVCCameraView(
         mViewBinding.fragmentContainer.removeAllViews()
         stateManager.updateState(CameraStateManager.CameraState.CLOSED)
         recordingTimerManager.release()
-        
-        // Clean up FPS monitoring
-        isStreaming = false
         fpsReportHandler.removeCallbacks(fpsReportRunnable)
     }
 
@@ -283,6 +279,7 @@ internal class UVCCameraView(
                     stateManager.updateState(CameraStateManager.CameraState.CLOSED, "Device detached")
                 }
                 mRequestPermission.set(false)
+                mResolvedCamera = null
                 try {
                     mCurrentCamera?.cancel(true)
                     mCurrentCamera = null
@@ -306,18 +303,21 @@ internal class UVCCameraView(
                     }
                     mCurrentCamera = SettableFuture()
                     mCurrentCamera?.set(camera)
+                    mResolvedCamera = camera
                     openCamera(mCameraView)
                     Logger.i(TAG, "camera connection. pid: ${device.productId}, vid: ${device.vendorId}")
                 }
             }
 
             override fun onDisConnectDec(device: UsbDevice?, ctrlBlock: USBMonitor.UsbControlBlock?) {
+                mResolvedCamera = null
                 closeCamera()
                 mRequestPermission.set(false)
             }
 
             override fun onCancelDev(device: UsbDevice?) {
                 mRequestPermission.set(false)
+                mResolvedCamera = null
                 try {
                     mCurrentCamera?.cancel(true)
                     mCurrentCamera = null
@@ -417,6 +417,45 @@ internal class UVCCameraView(
         return Gson().toJson(previewSizes)
     }
 
+    /**
+     * Issue #26: return the actual "image area" rectangle inside the AndroidView.
+     *
+     * The preview view we create is an [AspectRatioTextureView], which may be measured smaller
+     * than its parent due to aspect ratio fitting. We expose:
+     * - containerWidth/HeightPx
+     * - surfaceWidth/HeightPx (IAspectRatio measured size)
+     * - offsetLeft/TopRatio (center offset assuming gravity=center)
+     *
+     * Ratios are relative to the container, so Flutter can compute overlay size precisely.
+     */
+    fun getPreviewSurfaceInfo(): Map<String, Any>? {
+        val st = mCameraView as? IAspectRatio ?: return null
+        val container = mViewBinding.fragmentContainer
+        val containerWidthPx = container.width
+        val containerHeightPx = container.height
+        val surfaceWidthPx = st.getSurfaceWidth()
+        val surfaceHeightPx = st.getSurfaceHeight()
+        if (containerWidthPx <= 0 || containerHeightPx <= 0) return null
+        if (surfaceWidthPx <= 0 || surfaceHeightPx <= 0) return null
+
+        val offsetLeftPx = (containerWidthPx - surfaceWidthPx) / 2
+        val offsetTopPx = (containerHeightPx - surfaceHeightPx) / 2
+
+        val containerW = containerWidthPx.toDouble()
+        val containerH = containerHeightPx.toDouble()
+
+        return mapOf(
+            "containerWidthPx" to containerWidthPx,
+            "containerHeightPx" to containerHeightPx,
+            "surfaceWidthPx" to surfaceWidthPx,
+            "surfaceHeightPx" to surfaceHeightPx,
+            "offsetLeftRatio" to (offsetLeftPx.toDouble() / containerW),
+            "offsetTopRatio" to (offsetTopPx.toDouble() / containerH),
+            "surfaceWidthRatio" to (surfaceWidthPx.toDouble() / containerW),
+            "surfaceHeightRatio" to (surfaceHeightPx.toDouble() / containerH),
+        )
+    }
+
     fun updateResolution(arguments: Any?) {
         val map = arguments as HashMap<*, *>
         val width = map["width"] as Int
@@ -452,12 +491,11 @@ internal class UVCCameraView(
 
         // Only restart preview when camera is opened and we're not busy.
         if (!stateManager.isOpened()) return
-        if (isStreaming || isCapturingVideoOrAudio) return
+        if (isStreaming.get() || isCapturingVideoOrAudio.get()) return
 
         closeCamera()
         configManager.cameraHandler.postDelayed({
-            // Re-check before restarting to avoid races with close/dispose.
-            if (isStreaming || isCapturingVideoOrAudio) return@postDelayed
+            if (isStreaming.get() || isCapturingVideoOrAudio.get()) return@postDelayed
             if (mCameraView == null) return@postDelayed
             if (!PermissionManager.hasCameraAndStoragePermissions(mContext)) return@postDelayed
             openCamera(mCameraView)
@@ -539,8 +577,9 @@ internal class UVCCameraView(
     }
 
     private fun getCurrentCamera(): MultiCameraClient.ICamera? {
+        mResolvedCamera?.let { return it }
         return try {
-            mCurrentCamera?.get(2, TimeUnit.SECONDS)
+            mCurrentCamera?.get(2, TimeUnit.SECONDS)?.also { mResolvedCamera = it }
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -574,12 +613,9 @@ internal class UVCCameraView(
 
     fun switchCamera(usbDevice: UsbDevice) {
         getCurrentCamera()?.closeCamera()
-        try {
-            Thread.sleep(500)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        requestPermission(usbDevice)
+        Handler(Looper.getMainLooper()).postDelayed({
+            requestPermission(usbDevice)
+        }, 500L)
     }
 
     fun openCamera(st: IAspectRatio? = null) {
@@ -703,10 +739,9 @@ internal class UVCCameraView(
         }
         camera.captureStreamStart()
         Logger.i(TAG, "Camera stream started")
-        isStreaming = true
+        isStreaming.set(true)
+        videoStreamHandler.startStatsTicker()
         videoStreamHandler.sendState("STREAM_STARTED")
-        
-        // Start FPS monitoring
         fpsReportHandler.post(fpsReportRunnable)
     }
 
@@ -714,10 +749,9 @@ internal class UVCCameraView(
         Logger.i(TAG, "Stopping camera stream")
         getCurrentCamera()?.captureStreamStop()
         Logger.i(TAG, "Camera stream stopped")
-        isStreaming = false
+        isStreaming.set(false)
+        videoStreamHandler.stopStatsTicker()
         videoStreamHandler.sendState("STREAM_STOPPED")
-        
-        // Stop FPS monitoring
         fpsReportHandler.removeCallbacks(fpsReportRunnable)
     }
 
@@ -798,7 +832,7 @@ internal class UVCCameraView(
             callback.onError("Audio permission required for video recording. Please retry after granting permission.")
             return
         }
-        if (isCapturingVideoOrAudio) {
+        if (isCapturingVideoOrAudio.get()) {
             recordingTimerManager.stopRecording()
             captureVideoStop()
             return
@@ -811,21 +845,22 @@ internal class UVCCameraView(
 
         captureVideoStart(object : ICaptureCallBack {
             override fun onBegin() {
-                isCapturingVideoOrAudio = true
+                isCapturingVideoOrAudio.set(true)
                 callFlutter("Started video recording")
                 recordingTimerManager.startRecording()
             }
 
             override fun onError(error: String?) {
-                isCapturingVideoOrAudio = false
+                isCapturingVideoOrAudio.set(false)
                 recordingTimerManager.stopRecording()
                 callback.onError(error ?: "Video capture error")
             }
 
             override fun onComplete(path: String?) {
+                isCapturingVideoOrAudio.set(false)
+                recordingTimerManager.stopRecording()
                 if (path != null) {
                     callback.onSuccess(path)
-                    // Keep scanFile only for older Android where MediaStore insert isn't always picked up immediately.
                     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                         MediaScannerConnection.scanFile(
                             view.context,
@@ -835,11 +870,7 @@ internal class UVCCameraView(
                             println("Media scan completed for file: $mPath with uri: $uri")
                         }
                     }
-                    isCapturingVideoOrAudio = false
-                    recordingTimerManager.stopRecording()
                 } else {
-                    isCapturingVideoOrAudio = false
-                    recordingTimerManager.stopRecording()
                     callback.onError("Failed to save video")
                 }
             }
@@ -859,31 +890,22 @@ internal class UVCCameraView(
             callFlutter("Camera not available")
             return false
         }
-        return invokeCameraMethod(camera, "startPlayMic")
+        return try {
+            camera.startPlayMic(null)
+            true
+        } catch (e: Exception) {
+            callFlutter("Failed to start mic: ${e.message}")
+            false
+        }
     }
 
     fun stopPlayMic(): Boolean {
-        val camera = getCurrentCamera() ?: run {
-            callFlutter("Camera not available")
-            return false
-        }
-        return invokeCameraMethod(camera, "stopPlayMic")
-    }
-
-    private fun invokeCameraMethod(camera: Any, methodName: String): Boolean {
+        val camera = getCurrentCamera() ?: return false
         return try {
-            val method = camera.javaClass.methods.firstOrNull { it.name == methodName }
-            if (method == null) {
-                callFlutter("Method $methodName not supported by current camera implementation")
-                return false
-            }
-            val result = method.invoke(camera)
-            when (result) {
-                is Boolean -> result
-                else -> true
-            }
+            camera.stopPlayMic()
+            true
         } catch (e: Exception) {
-            callFlutter("Failed to call $methodName: ${e.message}")
+            callFlutter("Failed to stop mic: ${e.message}")
             false
         }
     }

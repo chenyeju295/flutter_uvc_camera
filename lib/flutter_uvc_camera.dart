@@ -12,3 +12,4 @@ part 'src/models/camera_preview_size_entity.dart';
 part 'src/models/camera_features.dart';
 part 'src/models/video_stream_event.dart';
 part 'src/models/camera_plugin_states.dart';
+part 'src/models/preview_surface_info.dart';
