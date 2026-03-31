@@ -486,7 +486,7 @@ class _CameraTestState extends State<CameraTest> {
   captureVideo(int i) async {
     if (isRecording) {
       // 如果正在录制，则停止录制
-      String? path = await cameraController.captureVideo();
+      String? path = await cameraController.stopVideo();
       if (path != null) {
         videoPath = path;
         setState(() {

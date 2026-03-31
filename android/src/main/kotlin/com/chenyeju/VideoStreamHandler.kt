@@ -225,7 +225,6 @@ class VideoStreamHandler : EventChannel.StreamHandler {
             
             copy
         } catch (e: Exception) {
-            sink.error("VIDEO_STREAM_ERROR", "Error copying video buffer: ${e.message}", null)
             // If we don't post an event, we must release the backpressure slot now.
             if (isVideoFrame) {
                 pendingVideoSend.set(false)

@@ -587,10 +587,6 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
         mUvcCamera?.setButtonCallback(callback)
     }
 
-
-
-
-
     /**
      * Set saturation
      *
@@ -626,9 +622,6 @@ class CameraUVC(ctx: Context, device: UsbDevice, private val params: Any?
      */
     fun getHue() = mUvcCamera?.hue
 
-    /**
-     * Reset saturation
-     */
     fun resetHue() {
         mUvcCamera?.resetHue()
     }

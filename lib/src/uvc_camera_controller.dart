@@ -1,7 +1,7 @@
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_uvc_camera/flutter_uvc_camera.dart';
 
